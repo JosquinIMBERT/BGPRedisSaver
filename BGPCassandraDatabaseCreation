@@ -1,0 +1,44 @@
+CREATE KEYSPACE 'BGP_KEYSPACE' WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 3};
+
+USE BGP_KEYSPACE;
+
+CREATE TABLE AS (
+    name text PRIMARY KEY,
+    country text,
+    RIR text,
+    ownerAddress text,
+    lastChanged timestamp,
+    description text,
+    dateCreated timestamp,
+    risk float,
+    activePrefixNum int,
+    allPrefixNum int,
+    allPrefix24Num int,
+    activePathsNum int,
+    cTime timestamp,
+    observed boolean,
+    outage boolean,
+    status int
+);
+
+CREATE TABLE PATH (
+    hash text PRIMARY KEY,
+    path list<text>,
+    pathLength int,
+    prefNum int,
+    lastChange timestamp,
+    meanUp double,
+    meanDown double,
+    collector text,
+    active boolean
+);
+
+CREATE TABLE LINK (
+    src text,
+    dst text,
+    bTime timestamp,
+    cTime timestamp,
+    active boolean,
+    pathNum int,
+    PRIMARY KEY (src, dst)
+);
