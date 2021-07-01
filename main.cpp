@@ -34,9 +34,9 @@ int main(int argc, char **argv) {
 
     vector<Ensemble> sets;
     //sets.push_back(Ensemble("PREFIXES", "", MAX_SIZE));
-    sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE));
+    sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "Paths"));
     //sets.push_back(Ensemble("INACTIVEPATHS", "", MAX_SIZE));
-    //sets.push_back(Ensemble("ROUTINGENTRIES", "", MAX_SIZE));
+    sets.push_back(Ensemble("ROUTINGENTRIES", "PRE", MAX_SIZE, false, "RoutingEvent"));
     //sets.push_back(Ensemble("INACTIVEROUTINGENTRIES", "", MAX_SIZE));
 
     if(argc >= 2) {
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
                         string values = splited_cmd[1];
                         int taille = atoi(splited_cmd[1].c_str());
                         i++;
-                        sets.push_back(Ensemble(keys, values, taille));
+                        sets.push_back(Ensemble(keys, values, taille, true, ""));
                     }
                     if(i<argc) i--;
                 }

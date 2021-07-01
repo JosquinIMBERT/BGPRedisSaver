@@ -23,7 +23,7 @@ namespace BGPCassandraInserter {
         cout << "TODO end cassandra connection" << endl;
     }
 
-    void insert(string set_name, string old_key, string old_value, int old_timestamp) {
+    void insert(string dstTable, string set_name, string old_key, string old_value, int old_timestamp) {
         string table_insertion = "";
         if(set_name=="APATHS") {
             table_insertion = "Paths";

@@ -42,3 +42,21 @@ CREATE TABLE LINK (
     pathNum int,
     PRIMARY KEY (src, dst)
 );
+
+CREATE TABLE ROUTINGEVENT (
+    prefixID text,
+    peer int,
+    pathHash text,
+    active varchar,
+    time timestamp,
+    status text,
+    PRIMARY KEY (prefixID, peer, pathHash, time)
+);
+
+CREATE TABLE ASEVENT (
+    dstAS int,
+    prefixID text,
+    active varchar,
+    time timestamp,
+    PRIMARY KEY (dstAS, prefixID, time)
+);
