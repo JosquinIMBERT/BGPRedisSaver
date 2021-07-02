@@ -84,7 +84,11 @@ namespace BGPRedisSaver {
                         values_set_name = sets[i].getValues(old_key);
                     int old_timestamp = key.second;
                     vector<string> toSave;
-                    getOldValues(values_set_name, old_key, toSave);
+                    getOldValues(values_set_name, old_key, &toSave);
+                    cout << "old_key="<<old_key<<", toSave=[";
+                    for(auto str : toSave) {
+                        cout << str << ", ";
+                    } cout << "]" << endl;
 
                     //Supprimer la donnée de Redis
                     deleteKeys(keys_set_name, 0, 0); //Suppression de la clé dans l'ensemble Redis
@@ -129,20 +133,20 @@ namespace BGPRedisSaver {
         }
     }
 
-    void getOldValues(string values_set_name, string key, vector<string> toSave) {
+    void getOldValues(string values_set_name, string key, vector<string> *toSave) {
         string type = redis.type(values_set_name);
         if(type=="string") {
             Optional<string> opt_res = redis.get(key);
-            toSave.push_back(opt_res->c_str());
+            toSave->push_back(opt_res->c_str());
         } else if(type=="list") {
-            redis.lrange(values_set_name, 0, -1, inserter(toSave, toSave.begin()));
+            redis.lrange(values_set_name, 0, -1, inserter(*toSave, toSave->begin()));
         } else if(type=="set") {
-            redis.smembers(values_set_name, inserter(toSave, toSave.begin()));
+            redis.smembers(values_set_name, inserter(*toSave, toSave->begin()));
         } else if(type=="zset") {
-            redis.zrange(values_set_name, 0,-1, inserter(toSave, toSave.begin()));
+            redis.zrange(values_set_name, 0,-1, inserter(*toSave, toSave->begin()));
         } else if(type=="hash") {
             Optional<string> opt_res = redis.hget(values_set_name, key);
-            toSave.push_back(key + "########" + opt_res->c_str());
+            toSave->push_back(key + " " + opt_res->c_str());
         } else if(type=="stream") {
             //TODO
         } else { //none

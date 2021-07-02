@@ -17,6 +17,7 @@ namespace BGPCassandraInserter {
     CassSession *session;
     string cassandra_host="127.0.0.1";
     int cassandra_port=9042;
+    const char *KEYSPACE="BGP_KEYSPACE";
 
 
 
@@ -33,7 +34,7 @@ namespace BGPCassandraInserter {
         cass_cluster_set_contact_points(cluster, cassandra_host.c_str());
         cass_cluster_set_port(cluster, cassandra_port);
         // Provide the cluster object as configuration to connect the session
-        connect_future = cass_session_connect(session, cluster);
+        connect_future = cass_session_connect_keyspace(session, cluster, KEYSPACE);
         if (cass_future_error_code(connect_future) != CASS_OK) {
             cerr << "Impossible de se connecter à la base Cassandra. Terminaison du programme." << endl;
             cass_future_free(connect_future);
