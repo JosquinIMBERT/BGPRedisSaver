@@ -30,7 +30,7 @@ bool est_option_valide(string cmd) {
 }
 
 int main(int argc, char **argv) {
-    const int MAX_SIZE = 150;
+    const int MAX_SIZE = 450000;
 
     vector<Ensemble> sets;
     //sets.push_back(Ensemble("PREFIXES", "", MAX_SIZE));

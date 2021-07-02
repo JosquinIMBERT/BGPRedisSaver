@@ -45,6 +45,7 @@ CREATE TABLE LINK (
 
 CREATE TABLE ROUTINGEVENT (
     prefixID text,
+    prefix text,
     peer int,
     pathHash text,
     active varchar,
@@ -54,11 +55,12 @@ CREATE TABLE ROUTINGEVENT (
 );
 
 CREATE TABLE ASEVENT (
-    dstAS int,
+    dstAS text,
+    ASN int,
     prefixID text,
     active varchar,
     time timestamp,
-    PRIMARY KEY (dstAS, prefixID, time)
+    PRIMARY KEY (ASN, prefixID, time)
 );
 
 CREATE TABLE DEFAULT_TABLE (

@@ -45,7 +45,7 @@ namespace BGPRedisSaver {
 
     void run(vector<Ensemble> sets) {
         if(sets.empty()) {
-            cerr << "BGPRedisServer::run received empty vector" << endl;
+            cerr << "BGPRedisServer::run received empty list of sets" << endl;
             return;
         }
         init_connections();
@@ -55,19 +55,26 @@ namespace BGPRedisSaver {
             string keys_set_name = sets[i].getKeys();
             string values_set_name = sets[i].getValues();
             int set_size = sets[i].getSize();
-            int nb_to_del = getStructSize(keys_set_name) - set_size;
+            int nb_element = getStructSize(keys_set_name);
+            int nb_to_del =  nb_element - set_size;
 
             cout << keys_set_name << " :" << endl;
+            cout << "\t-type: " << redis.type(keys_set_name) << endl;
             cout << "\t-size: " << set_size << endl;
+            cout << "\t-nb_element: " << nb_element << endl;
             cout << "\t-nb_to_del: " << nb_to_del << endl;
 
 
             if(nb_to_del>0) {
                 // Trouver les données à transférer
                 unordered_map<string, double> keys; //Recherche de la donnée à supprimer
-                getKeysToDelete(keys_set_name, nb_to_del, keys);
+                getKeysToDelete(keys_set_name, nb_to_del, &keys);
 
-                if (keys.empty()) continue;
+                if (keys.empty()) {
+                    cout << "No keys to delete for the set." << endl;
+                    i = (i+1) % sets.size();
+                    continue;
+                }
 
                 // Parcourir ces données
                 for (auto key : keys) {
@@ -115,10 +122,10 @@ namespace BGPRedisSaver {
         BGPCassandraInserter::setCassandra(cassandra_host, cassandra_port);
     }
 
-    void getKeysToDelete(string keys_set_name, int nb_to_del, unordered_map<string, double> data) {
+    void getKeysToDelete(string keys_set_name, int nb_to_del, unordered_map<string, double> *data) {
         string type = redis.type(keys_set_name);
         if(type=="zset") {
-            redis.zrange(keys_set_name, 0, nb_to_del, inserter(data, data.begin()));
+            redis.zrange(keys_set_name, 0, nb_to_del, inserter(*data, data->begin()));
         }
     }
 
@@ -171,7 +178,6 @@ namespace BGPRedisSaver {
 
     int getStructSize(string keys_set_name) {
         string type = redis.type(keys_set_name);
-        cout << keys_set_name << " : " << type << endl;
         if(type=="string") {
             return 1;
         } else if(type=="list") {

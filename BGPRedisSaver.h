@@ -19,7 +19,7 @@ namespace BGPRedisSaver {
     void stopTransfer();
     void setRedis(std::string redis_host, int redis_port);
     void setCassandra(std::string cassandra_host, int cassandra_port);
-    void getKeysToDelete(std::string keys_set_name, int nb_to_del, std::unordered_map<std::string, double> data);
+    void getKeysToDelete(std::string keys_set_name, int nb_to_del, std::unordered_map<std::string, double> *data);
     void getOldValues(std::string values_set_name, std::string key, std::vector<std::string> toSave);
     void deleteKeys(std::string keys_set_name, int start, int stop);
     void deleteValues(std::string values_set_name, std::string old_key, bool isStatic);

@@ -1,6 +1,7 @@
 //
 // Created by josqu on 28/06/2021.
 //
+#include <unistd.h>
 #include <iostream>
 #include <vector>
 #include <boost/algorithm/string.hpp>
@@ -139,4 +140,25 @@ void test::test() {
     cout << months << " months, " << days << " days, " << nanos << " nanos" << endl;
     cout << (months*2592000 + days*86400 + nanos/1000000000) << endl;
     */
+
+    string test = "string_test";
+    test_arg_string(test);
+    cout << test << endl; //Affiche : string_test. Conclusion, il faut explicitement passer les string par référence.
+
+
+
+
+    std::unordered_map<std::string, double> keys;
+    test_arg_map(keys);
+    cout << keys.size() << endl;
+}
+
+void test::test_arg_string(string str) {
+    str = "str_test";
+}
+
+void test::test_arg_map(unordered_map<string, double> keys) {
+    //keys.insert("test", 5);
+    keys["test"] = 5;
+    //keys.insert(pair<string, double>("test", 5));
 }
