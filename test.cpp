@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <boost/algorithm/string.hpp>
+#include <chrono>
 #include "bgpstream.h"
 
 #include "test.h"
@@ -121,4 +122,21 @@ void test::test() {
         cout << v << ", ";
     }
     cout << endl;
+
+
+
+
+
+
+    /*cout << endl << endl << endl << endl << endl;
+    const auto t = chrono::system_clock::now();
+    time_t time = chrono::duration_cast<chrono::seconds>(t.time_since_epoch()).count();
+    long int months = time/2592000; //2 592 000 = 60*60*24*30
+    long int days = (time-months*2592000)/86400, //86 400 = 60*60*24
+    nanos = (time-days*86400)*1000000000;
+    cout << time << endl;
+    //Devrait valoir environ 1530 mois,
+    cout << months << " months, " << days << " days, " << nanos << " nanos" << endl;
+    cout << (months*2592000 + days*86400 + nanos/1000000000) << endl;
+    */
 }

@@ -28,5 +28,5 @@ target_include_directories(BGPRedisSaver PUBLIC ${CASSANDRA_HEADER})
 find_path(CASSANDRA_HEADER cassandra)
 target_include_directories(BGPRedisSaver PUBLIC ${CASSANDRA_HEADER})
 set(CASSANDRA_LIB /usr/local/lib/libcassandra.so)
-find_library(CASSANDRA_LIB cassandra) # Je ne sais pas pourquoi cette ligne ne fonctionne pas. Du coup je donne la localisation en brut
-#target_link_libraries(BGPRedisSaver ${CASSANDRA_LIB})
+#find_library(CASSANDRA_LIB cassandra) # Je ne sais pas pourquoi cette ligne ne fonctionne pas. Du coup je donne la localisation en brut
+target_link_libraries(BGPRedisSaver ${CASSANDRA_LIB})

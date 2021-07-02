@@ -60,3 +60,11 @@ CREATE TABLE ASEVENT (
     time timestamp,
     PRIMARY KEY (dstAS, prefixID, time)
 );
+
+CREATE TABLE DEFAULT_TABLE (
+    key text PRIMARY KEY,
+    value text,
+    dstTable text,
+    srcSet text,
+    time timestamp
+);
