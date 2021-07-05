@@ -151,6 +151,11 @@ void test::test() {
     std::unordered_map<std::string, double> keys;
     test_arg_map(keys);
     cout << keys.size() << endl;
+
+
+
+    cout << "Taille unsigned int : " << sizeof(unsigned int) << endl;
+    cout << sizeof(long unsigned int) << endl;
 }
 
 void test::test_arg_string(string str) {

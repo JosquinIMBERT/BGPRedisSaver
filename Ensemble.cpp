@@ -25,7 +25,7 @@ std::string Ensemble::getValues() {
 
 std::string Ensemble::getValues(std::string listKey) {
     if(this->staticSet) return "";
-    return this->value_set_name + listKey;
+    return this->value_set_name + ":" + listKey;
 }
 
 int Ensemble::getSize() {

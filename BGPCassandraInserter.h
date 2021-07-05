@@ -12,7 +12,7 @@ namespace BGPCassandraInserter {
 
     void init_connections();
     void end_connections();
-    void insert(std::string dstTable, std::string set_name, std::string old_key, std::string old_value, unsigned int old_timestamp);
+    bool insert(std::string dstTable, std::string set_name, std::string old_key, std::string old_value, unsigned int old_timestamp);
     void setCassandra(std::string cassandra_host, int cassandra_port);
 
     CassStatement *addRoutingEventQuery(std::string old_key, std::string old_value);

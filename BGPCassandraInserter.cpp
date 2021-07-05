@@ -26,6 +26,7 @@ namespace BGPCassandraInserter {
 
     //######################## CONNEXION ########################
     void init_connections() {
+        cout << "Connecting to Cassandra..." ;
         //##### Connexion à la base cassandra #####
         CassFuture *connect_future = NULL;
         cluster = cass_cluster_new();
@@ -36,16 +37,18 @@ namespace BGPCassandraInserter {
         // Provide the cluster object as configuration to connect the session
         connect_future = cass_session_connect_keyspace(session, cluster, KEYSPACE);
         if (cass_future_error_code(connect_future) != CASS_OK) {
-            cerr << "Impossible de se connecter à la base Cassandra. Terminaison du programme." << endl;
+            cout << "failed." << endl;
             cass_future_free(connect_future);
             cass_cluster_free(cluster);
             cass_session_free(session);
             exit(1);
         }
         cass_future_free(connect_future);
+        cout << "done." << endl;
     }
 
     void end_connections() {
+        cout << "Ending connection with Cassandra...";
         //##### Fin de la connexion à la base Cassandra #####
         CassFuture *close_future = cass_session_close(session);
         cass_future_wait(close_future);
@@ -54,6 +57,7 @@ namespace BGPCassandraInserter {
         //##### Libération des variables Cassandra #####
         cass_cluster_free(cluster);
         cass_session_free(session);
+        cout << "done." << endl;
     }
 
 
@@ -63,30 +67,28 @@ namespace BGPCassandraInserter {
 
 
     //######################## FONCTION PRINCIPALE ########################
-    void insert(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
+    bool insert(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
         CassStatement *statement;
         if(dstTable=="ROUTINGEVENT") {
             statement = addRoutingEventQuery(old_key, old_value);
         } else if(dstTable=="ASEVENT") {
             statement = addASEventQuery(old_key, old_value);
-        } else if(dstTable=="PATHS") {
+        } else if(dstTable=="PATH") {
             statement = addPathQuery(old_value);
         } else {
             statement = addDefaultQuery(dstTable, set_name, old_key, old_value, old_timestamp);
         }
 
+        bool ret = true;
         CassFuture *result_future = cass_session_execute(session, statement);
-        if (cass_future_error_code(result_future) == CASS_OK) {
-            cout << "La donnée (key:" << old_key
-                 <<", value:" << old_value
-                 <<", timestamp:" << old_timestamp
-                 <<") a bien été transférée vers Cassandra." << endl;
-        } else {
+        if (cass_future_error_code(result_future) != CASS_OK) {
             const char *message;
             size_t message_length;
             cass_future_error_message(result_future, &message, &message_length);
-            fprintf(stderr, "Unable to run query: '%.*s'\n", (int) message_length, message);
+            fprintf(stderr, "BGPCassandraInserter error: Unable to run query: '%.*s'\n", (int) message_length, message);
+            ret = false;
         }
+        return ret;
     }
 
 
@@ -117,7 +119,7 @@ namespace BGPCassandraInserter {
 
         string prefixID = "", prefix = "", pathHash = "", status = "", active = "";
         int peer = 0;
-        unsigned int time = 0;
+        long unsigned int time = 0;
 
         //Initialisation et décodage
         RedisDecode::routingEventFromRedis(old_value, &pathHash, &status, &active, &time);
@@ -129,7 +131,7 @@ namespace BGPCassandraInserter {
         cass_statement_bind_int32(statement, 2, peer);
         cass_statement_bind_string(statement, 3, pathHash.c_str());
         cass_statement_bind_string(statement, 4, active.c_str());
-        cass_statement_bind_uint32(statement, 5, time);
+        cass_statement_bind_int64(statement, 5, time*1000);
         cass_statement_bind_string(statement, 6, status.c_str());
 
         return statement;
@@ -143,17 +145,17 @@ namespace BGPCassandraInserter {
         string dstAS = "";
         int ASN = 0;
         string prefixID = "", active = "";
-        unsigned int time = 0;
+        long unsigned int time = 0;
 
         RedisDecode::ASEventFromRedis(old_value, &prefixID, &active, &time);
         RedisDecode::ASEventFromRedisKey(old_key, &dstAS, &ASN);
 
-        CassStatement *statement = cass_statement_new(query, 7);
+        CassStatement *statement = cass_statement_new(query, 5);
         cass_statement_bind_string(statement, 0, dstAS.c_str());
         cass_statement_bind_int32(statement, 1, ASN);
-        cass_statement_bind_string(statement, 1, prefixID.c_str());
-        cass_statement_bind_string(statement, 2, active.c_str());
-        cass_statement_bind_uint32(statement, 3, time);
+        cass_statement_bind_string(statement, 2, prefixID.c_str());
+        cass_statement_bind_string(statement, 3, active.c_str());
+        cass_statement_bind_int64(statement, 4, time*1000);
 
         return statement;
     }
@@ -166,7 +168,7 @@ namespace BGPCassandraInserter {
         string hash = "", collector = "";
         vector<string> path;
         int pathLength = 0, prefNum = 0;
-        unsigned int lastChange = 0;
+        long unsigned int lastChange = 0;
         double meanUp = 0.0, meanDown = 0.0;
         bool active = true;
 
@@ -180,7 +182,7 @@ namespace BGPCassandraInserter {
         cass_statement_bind_collection(statement, 1, collection);
         cass_statement_bind_int32(statement, 2, pathLength);
         cass_statement_bind_int32(statement, 3, prefNum);
-        cass_statement_bind_uint32(statement, 4, lastChange);
+        cass_statement_bind_int64(statement, 4, lastChange*1000);
         cass_statement_bind_double(statement, 5, meanUp);
         cass_statement_bind_double(statement, 6, meanDown);
         cass_statement_bind_string(statement, 7, collector.c_str());
@@ -199,7 +201,7 @@ namespace BGPCassandraInserter {
         cass_statement_bind_string(statement, 1, old_value.c_str());
         cass_statement_bind_string(statement, 2, dstTable.c_str());
         cass_statement_bind_string(statement, 3, set_name.c_str());
-        cass_statement_bind_uint32(statement, 4, old_timestamp);
+        cass_statement_bind_int64(statement, 4, old_timestamp*1000);
         return statement;
     }
 

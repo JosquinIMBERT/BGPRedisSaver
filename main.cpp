@@ -20,23 +20,24 @@ void usage() {
     cout << endl << "\tOptions :" << endl;
     cout << "\t\t -R <host> <port> \t\t\t\t\t Informations de connexion à la base de données Redis" << endl;
     cout << "\t\t -C <host> <port> \t\t\t\t\t Informations de connexion à la base de données Cassandra" << endl;
+    cout << "\t\t -P <bool> \t\t\t\t Autoriser ou non les affichages" << endl;
     cout << "\t\t -S <keys,values,taille> [keys,values,taille ...] \t Noms des ensembles et taille maximale associée dans la base de données Redis à transférer" << endl;
     cout << "\t\t --help \t\t\t\t\t\t\t Afficher cette page d'aide" << endl;
 }
 
 bool est_option_valide(string cmd) {
-    bool estValide = cmd=="-R" || cmd=="-C" || cmd=="-S";
+    bool estValide = cmd=="-R" || cmd=="-C" || cmd=="-S" || cmd=="-P";
     return estValide;
 }
 
 int main(int argc, char **argv) {
-    const int MAX_SIZE = 450000;
+    const int MAX_SIZE = 496460;
 
     vector<Ensemble> sets;
     //sets.push_back(Ensemble("PREFIXES", "", MAX_SIZE));
-    sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "Paths"));
+    sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "PATH"));
     //sets.push_back(Ensemble("INACTIVEPATHS", "", MAX_SIZE));
-    sets.push_back(Ensemble("ROUTINGENTRIES", "PRE", MAX_SIZE, false, "RoutingEvent"));
+    sets.push_back(Ensemble("ROUTINGENTRIES", "PRE", 3032520, false, "ROUTINGEVENT"));
     //sets.push_back(Ensemble("INACTIVEROUTINGENTRIES", "", MAX_SIZE));
 
     if(argc >= 2) {
@@ -55,6 +56,10 @@ int main(int argc, char **argv) {
                     string cassandra_host = argv[++i];
                     int cassandra_port = atoi(argv[++i]);
                     BGPRedisSaver::setCassandra(cassandra_host, cassandra_port);
+                } else if(cmd=="-P") {
+                    string str_bool(argv[++i]);
+                    bool print = str_bool=="true" || str_bool=="1";
+                    BGPRedisSaver::setPrint(print);
                 } else { //Liste des ensembles
                     sets.clear();
                     i++;

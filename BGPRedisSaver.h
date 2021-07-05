@@ -24,6 +24,12 @@ namespace BGPRedisSaver {
     void deleteKeys(std::string keys_set_name, int start, int stop);
     void deleteValues(std::string values_set_name, std::string old_key, bool isStatic);
     int getStructSize(std::string keys_set_name);
+
+    void setPrint(bool p);
+    void setSleepDuration(int sleep);
+
+    void printSetInfo(std::string keys_set_name, int set_size, int nb_element, int nb_to_del);
+    void printInfo(std::string initial_tab, int ind, std::string values_set_name, std::string old_key, std::vector<std::string> toSave, int success);
 }
 
 #endif //BGPREDISSAVER_BGPREDISSAVER_H

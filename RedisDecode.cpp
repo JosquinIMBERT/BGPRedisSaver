@@ -68,7 +68,7 @@ namespace RedisDecode {
                                string *pathHash,
                                string *status,
                                string *active,
-                               unsigned int *time) {
+                               long unsigned int *time) {
         vector<string> values = split(str);
         *pathHash = values.at(0);
         *active = values.at(1);
@@ -81,9 +81,9 @@ namespace RedisDecode {
                                   string *prefix,
                                   int *peer) {
         vector<string> values = split(str);
-        *prefixID = values.at(1); //Ignore prefix "PRE:" in key at index 0
+        *prefixID = values.at(0); //Ignore prefix "PRE:" in key at index 0
         *prefix = from_myencodingPref(*prefixID);
-        *peer = from_myencoding(values.at(2));
+        *peer = from_myencoding(values.at(1));
     }
 
 
@@ -92,7 +92,7 @@ namespace RedisDecode {
 
 
     //######################### AS EVENTS #########################
-    void ASEventFromRedis(string str, string *prefixID, string *active, unsigned int *time) {
+    void ASEventFromRedis(string str, string *prefixID, string *active, long unsigned int *time) {
         vector<string> values = split(str);
         *prefixID = values.at(0);
         *active = values.at(1);
@@ -116,7 +116,7 @@ namespace RedisDecode {
                        vector<string> *path,
                        int *pathLength,
                        int *prefNum,
-                       unsigned int *lastChange,
+                       long unsigned int *lastChange,
                        double *meanUp,
                        double *meanDown,
                        bool *active) {

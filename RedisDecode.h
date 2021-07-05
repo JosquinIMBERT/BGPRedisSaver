@@ -16,13 +16,13 @@ namespace RedisDecode {
                    std::string *pathHash,
                    std::string *status,
                    std::string *active,
-                   unsigned int *time);
+                   long unsigned int *time);
     void routingEventFromRedisKey(std::string str,
                                   std::string *prefixID,
                                   std::string *prefix,
                                   int *peer);
 
-    void ASEventFromRedis(std::string str, std::string *prefixID, std::string *active, unsigned int *time);
+    void ASEventFromRedis(std::string str, std::string *prefixID, std::string *active, long unsigned int *time);
     void ASEventFromRedisKey(std::string str, std::string *dstAS, int *ASN);
 
     void pathFromRedis(std::string str,
@@ -31,7 +31,7 @@ namespace RedisDecode {
                        std::vector<std::string> *path,
                        int *pathLength,
                        int *prefNum,
-                       unsigned int *lastChange,
+                       long unsigned int *lastChange,
                        double *meanUp,
                        double *meanDown,
                        bool *active);

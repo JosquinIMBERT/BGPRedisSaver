@@ -18,12 +18,14 @@ using namespace std;
 
 namespace BGPRedisSaver {
     bool stop = false;
+    bool print = false;
+    int sleep_duration = 2;
     string redis_host="127.0.0.1";
     int redis_port=6379;
     sw::redis::Redis redis = sw::redis::Redis("tcp://127.0.0.1:6379");
 
     void init_connections() {
-        cout << "Connexion à la base Redis...";
+        cout << "Connecting to Redis...";
         try {
             ConnectionOptions connection_options;
             connection_options.host = redis_host;
@@ -31,7 +33,7 @@ namespace BGPRedisSaver {
             redis = Redis(connection_options);
             cout << "done." << endl;
         } catch (const Error &e) {
-            cout << "echec." << endl;
+            cout << "failed." << endl;
             cerr << e.what() << endl;
             exit(0);
         }
@@ -41,6 +43,7 @@ namespace BGPRedisSaver {
 
     void end_connections() {
         BGPCassandraInserter::end_connections();
+        cout << "Ending connection with Redis...done." << endl;
     }
 
     void run(vector<Ensemble> sets) {
@@ -58,11 +61,8 @@ namespace BGPRedisSaver {
             int nb_element = getStructSize(keys_set_name);
             int nb_to_del =  nb_element - set_size;
 
-            cout << keys_set_name << " :" << endl;
-            cout << "\t-type: " << redis.type(keys_set_name) << endl;
-            cout << "\t-size: " << set_size << endl;
-            cout << "\t-nb_element: " << nb_element << endl;
-            cout << "\t-nb_to_del: " << nb_to_del << endl;
+
+            printSetInfo(keys_set_name, set_size, nb_element, nb_to_del);
 
 
             if(nb_to_del>0) {
@@ -71,11 +71,12 @@ namespace BGPRedisSaver {
                 getKeysToDelete(keys_set_name, nb_to_del, &keys);
 
                 if (keys.empty()) {
-                    cout << "No keys to delete for the set." << endl;
+                    cout << "\t\t-Nothing to delete for the set." << endl;
                     i = (i+1) % sets.size();
                     continue;
                 }
 
+                int cpt=0;
                 // Parcourir ces données
                 for (auto key : keys) {
                     // Récupérer la donnée à transférer
@@ -85,29 +86,27 @@ namespace BGPRedisSaver {
                     int old_timestamp = key.second;
                     vector<string> toSave;
                     getOldValues(values_set_name, old_key, &toSave);
-                    cout << "old_key="<<old_key<<", toSave=[";
-                    for(auto str : toSave) {
-                        cout << str << ", ";
-                    } cout << "]" << endl;
 
                     //Supprimer la donnée de Redis
                     deleteKeys(keys_set_name, 0, 0); //Suppression de la clé dans l'ensemble Redis
                     deleteValues(values_set_name, old_key, sets[i].isStatic());
 
+                    int success = 0;
                     //Ajouter la donnée à Cassandra
                     for(auto val : toSave) {
-                        //TODO seul endroit qu'il reste à modifier en théorie :
-                        // passer les bonnes infos à Cassandra car la spécification de insert devrait changer
-                        BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp);
+                        if(BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp))
+                            success++;
                     }
+
+                    printInfo("\t\t", cpt, values_set_name, old_key, toSave, success);
 
                     //TODO Ajouter un indicateur de la suppression dans Redis
 
-
+                    cpt++;
                 }
             }
             i = (i+1) % sets.size();
-            sleep(2);
+            sleep(sleep_duration);
         }
 
         end_connections();
@@ -199,4 +198,44 @@ namespace BGPRedisSaver {
         }
     }
 
+
+
+
+    void setPrint(bool p) {
+        print = p;
+    }
+
+    void setSleepDuration(int sleep) {
+        sleep_duration = sleep;
+    }
+
+
+
+    void printSetInfo(string keys_set_name, int set_size, int nb_element, int nb_to_del) {
+        if(print) {
+            cout << endl << keys_set_name << " :" << endl;
+            cout << "\t-type: " << redis.type(keys_set_name) << endl;
+            cout << "\t-size: " << set_size << endl;
+            cout << "\t-nb_element: " << nb_element << endl;
+            cout << "\t-nb_to_del: " << nb_to_del << endl;
+            cout << "\t-values: " << endl;
+        }
+    }
+
+    void printInfo(string initial_tab, int ind, string values_set_name, string old_key, vector<string> toSave, int success) {
+        if(print) {
+            cout << initial_tab << "-Transfer " << ind << " :" << endl;
+            cout << initial_tab << "\t-set: " << values_set_name << endl;
+            cout << initial_tab << "\t-old_key: " << old_key << endl;
+            cout << initial_tab << "\t-toSave: [";
+            bool first = true;
+            for (auto str : toSave) {
+                if (first) first = false;
+                else cout << ", ";
+                cout << str;
+            }
+            cout << "]" << endl;
+            cout << initial_tab << "\t-success: " << success << endl;
+        }
+    }
 }
