@@ -16,6 +16,7 @@ public:
     bool isStatic();
     std::string getDstTable();
     Ensemble(std::string keys, std::string values, int size, bool staticSet, std::string dstTable);
+    std::string toString();
 private:
     std::string key_set_name; //Ordered Set (ZSet), contains (timestamp->key)
     std::string value_set_name; //List Prefix (non-static mode, exple : "PRE:" or "ASR:") / Hash (static mode)

@@ -217,8 +217,8 @@ namespace BGPRedisSaver {
             cout << "\t-type: " << redis.type(keys_set_name) << endl;
             cout << "\t-size: " << set_size << endl;
             cout << "\t-nb_element: " << nb_element << endl;
-            cout << "\t-nb_to_del: " << nb_to_del << endl;
-            cout << "\t-values: " << endl;
+            cout << "\t-nb_to_del: " << ((nb_to_del>0) ? nb_to_del : 0) << endl;
+            cout << "\t-values: " << ((nb_to_del<=0) ? "none" : "") << endl;
         }
     }
 

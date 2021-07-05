@@ -1,6 +1,7 @@
 //
 // Created by josqu on 28/06/2021.
 //
+#include <iostream>
 
 #include "Ensemble.h"
 
@@ -38,4 +39,15 @@ bool Ensemble::isStatic() {
 
 std::string Ensemble::getDstTable() {
     return this->dstTable;
+}
+
+std::string Ensemble::toString() {
+    string str = "{";
+    str += this->key_set_name + ",";
+    str += this->value_set_name + ",";
+    str += to_string(this->max_size) + ",";
+    str += to_string(this->staticSet) + ",";
+    str += this->dstTable;
+    str += "}";
+    return str;
 }

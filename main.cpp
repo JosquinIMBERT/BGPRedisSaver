@@ -16,17 +16,25 @@ void sigint_handler(int signum) {
 void usage() {
     cout << "BGPRedisServer :" << endl;
     cout << endl << "\tSupprimer périodiquement des données dans une base Redis et les transférer vers une base Cassandra." << endl;
-    cout << "\tPour cela, vous clés Redis doivent être sauvegadées dans un ensemble avec un score associé (Exemple : timestamp du dernier accès)." << endl;
+    cout << "\tPour cela, vos clés Redis doivent être sauvegadées dans un ensemble trié (ZSet) avec un score associé (Exemple : timestamp du dernier accès)." << endl;
     cout << endl << "\tOptions :" << endl;
     cout << "\t\t -R <host> <port> \t\t\t\t\t Informations de connexion à la base de données Redis" << endl;
     cout << "\t\t -C <host> <port> \t\t\t\t\t Informations de connexion à la base de données Cassandra" << endl;
-    cout << "\t\t -P <bool> \t\t\t\t Autoriser ou non les affichages" << endl;
-    cout << "\t\t -S <keys,values,taille> [keys,values,taille ...] \t Noms des ensembles et taille maximale associée dans la base de données Redis à transférer" << endl;
+    cout << "\t\t -P <bool> \t\t\t\t\t\t\t Autoriser ou non les affichages" << endl;
+    cout << "\t\t -S <keys,values,taille[,static,dstTable]> [keys,values,taille ...]" << endl;
+    cout << "\t\t\t -keys: Nom de l'ensemble des clés." << endl;
+    cout << "\t\t\t -values: Nom de l'ensemble des valeurs." << endl;
+    cout << "\t\t\t -taille: taille limite de l'ensemble (en nombre de clés)." << endl;
+    cout << "\t\t\t -static: booléen." << endl;
+    cout << "\t\t\t\t - mode statique : Une clé est associée à une valeur. On récupère des clés dans l'ensemble des clés et on supprime la valeur associée dans l'ensemble des valeurs." << endl;
+    cout << "\t\t\t\t - mode non statique : les valeurs à supprimer sont des listes de valeurs. Dans ce mode, les clés de l'ensemble des clés seront concaténées avec le préfixe donné dans le champ 'values' (Ex: 'PRE')." << endl;
+    cout << "\t\t\t -dstTable: table Cassandra dans laquelle seront transférées les valeurs." << endl;
+    cout << "\t\t -B <sleep> \t\t\t\t\t\t Entier définissant le temps de pause entre l'analyse de 2 ensembles" << endl;
     cout << "\t\t --help \t\t\t\t\t\t\t Afficher cette page d'aide" << endl;
 }
 
 bool est_option_valide(string cmd) {
-    bool estValide = cmd=="-R" || cmd=="-C" || cmd=="-S" || cmd=="-P";
+    bool estValide = cmd=="-R" || cmd=="-C" || cmd=="-S" || cmd=="-P" || cmd=="-B";
     return estValide;
 }
 
@@ -60,6 +68,8 @@ int main(int argc, char **argv) {
                     string str_bool(argv[++i]);
                     bool print = str_bool=="true" || str_bool=="1";
                     BGPRedisSaver::setPrint(print);
+                } else if(cmd=="-B") {
+                    BGPRedisSaver::setSleepDuration(atoi(argv[++i]));
                 } else { //Liste des ensembles
                     sets.clear();
                     i++;
@@ -68,17 +78,30 @@ int main(int argc, char **argv) {
                         cmd = argv[i];
                         vector<string> splited_cmd;
                         boost::split(splited_cmd, cmd, [](char c){return c == ',';});
-                        if(splited_cmd.size()!=3) continue;
+                        if(splited_cmd.size()<3) continue;
                         string keys = splited_cmd[0];
                         string values = splited_cmd[1];
-                        int taille = atoi(splited_cmd[1].c_str());
+                        int taille = atoi(splited_cmd[2].c_str());
                         i++;
-                        sets.push_back(Ensemble(keys, values, taille, true, ""));
+                        bool isStatic = true;
+                        string dstTable = "";
+                        if(splited_cmd.size()>=4) {
+                            string str_static(splited_cmd[3]);
+                            isStatic = str_static=="true" || str_static=="1";
+                            if(splited_cmd.size()>=5)
+                                dstTable = splited_cmd[4];
+                        }
+                        sets.push_back(Ensemble(keys, values, taille, isStatic, dstTable));
                     }
                     if(i<argc) i--;
                 }
             }
         }
+    }
+
+    cout << "sets(" << sets.size() << ") :" << endl;
+    for(auto set : sets) {
+        cout << "\t" << set.toString() << endl;
     }
 
     signal(SIGINT, sigint_handler);
