@@ -11,7 +11,7 @@
 3. [Before you start](#start)
    1. [Servers](#servers)
    2. [Create Cassandra Tables & Keyspace](#create_cassandra)
-   3. [Install Libraries](#libraries)
+   3. [Install Libraries](#librairies)
    4. [Edit CMakeLists for your own infrastructure](#cmakelists)
 4. [Use the application](#use)
 
