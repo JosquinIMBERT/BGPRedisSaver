@@ -97,11 +97,12 @@ Options :
 * -R \<host> \<port> Connection information for Redis database
 * -C \<host> \<port> Connection information for Cassandra database
 * -P \<bool> Authorize (or not) to print information
-* -S \<keys,values,size\[,static,dstTable]> \[keys,values,size ...]
+* -N <BATCH_MAX_SIZE> Number of accumulated values before effective insertion in Cassandra
+* -B \<sleep> Integer defining the duration of the break between the analyse of two sets.
+* --help Show this page of help
+* -S \<set1> \[\<set2>\] \[...] Where \<set> is \<keys,values,size\[,static\[,dstTable]]> with :
     * keys : Name of the keys' set.
     * values : Name of the values' set.
     * size : size threshold for this set (number of keys).
     * static : boolean defining the mode (static/non-static)
     * -dstTable : Cassandra table where the data will be transferred.
-* -B \<sleep> Integer defining the duration of the break between the analyse of two sets.
-* --help Show this page of help

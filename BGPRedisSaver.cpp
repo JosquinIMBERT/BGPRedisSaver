@@ -241,7 +241,7 @@ namespace BGPRedisSaver {
                 cout << str;
             }
             cout << "]" << endl;
-            cout << initial_tab << "\t-success: " << success << endl;
+            cout << initial_tab << "\t-nb transfered data: " << success << endl;
         }
     }
 }
