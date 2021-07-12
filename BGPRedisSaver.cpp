@@ -72,7 +72,7 @@ namespace BGPRedisSaver {
                 getKeysToDelete(keys_set_name, nb_to_del, &keys);
 
                 if (keys.empty()) {
-                    cout << "\t\t-Nothing to delete for the set." << endl;
+                    if(print) cout << "\t\t-Nothing to delete for the set." << endl;
                     i = (i+1) % sets.size();
                     continue;
                 }
@@ -80,6 +80,10 @@ namespace BGPRedisSaver {
                 int cpt=0;
                 // Parcourir ces données
                 for (auto key : keys) {
+                    if(stop) {
+                        cout << cpt << " keys deleted on " << nb_to_del << endl;
+                        break;
+                    }
                     // Récupérer la donnée à transférer
                     const char *old_key = key.first.c_str();
                     if (!sets[i].isStatic())
@@ -107,7 +111,7 @@ namespace BGPRedisSaver {
                 }
             }
             i = (i+1) % sets.size();
-            sleep(sleep_duration);
+            if(!stop) sleep(sleep_duration);
         }
 
         end_connections();
@@ -115,6 +119,7 @@ namespace BGPRedisSaver {
 
     void stopTransfer() {
         stop = true;
+
     }
 
     void setRedis(std::string redis_host, int redis_port) {
@@ -129,7 +134,7 @@ namespace BGPRedisSaver {
     void getKeysToDelete(string keys_set_name, int nb_to_del, unordered_map<string, double> *data) {
         string type = redis.type(keys_set_name);
         if(boost::iequals(type,"zset")) {
-            redis.zrange(keys_set_name, 0, nb_to_del, inserter(*data, data->begin()));
+            redis.zrange(keys_set_name, 0, nb_to_del-1, inserter(*data, data->begin()));
         }
     }
 
