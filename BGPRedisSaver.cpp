@@ -99,8 +99,9 @@ namespace BGPRedisSaver {
                     int success = 0;
                     //Ajouter la donnée à Cassandra
                     for(auto val : toSave) {
-                        if(BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp))
-                            success++;
+                        //if(BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp))
+                        //    success++;
+                        success += BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp);
                     }
 
                     printInfo("\t\t", cpt, values_set_name, old_key, toSave, success);

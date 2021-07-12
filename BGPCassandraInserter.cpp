@@ -16,9 +16,15 @@ using namespace std;
 namespace BGPCassandraInserter {
     CassCluster *cluster;
     CassSession *session;
+
+    CassBatch *batch;
+    int batch_size;
+    int BATCH_MAX_SIZE = 3;
+
     string cassandra_host="127.0.0.1";
     int cassandra_port=9042;
     const char *KEYSPACE="BGP_KEYSPACE";
+
 
 
 
@@ -32,6 +38,8 @@ namespace BGPCassandraInserter {
         CassFuture *connect_future = NULL;
         cluster = cass_cluster_new();
         session = cass_session_new();
+        batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+        batch_size = 0;
         // Add contact points
         cass_cluster_set_contact_points(cluster, cassandra_host.c_str());
         cass_cluster_set_port(cluster, cassandra_port);
@@ -50,12 +58,17 @@ namespace BGPCassandraInserter {
 
     void end_connections() {
         cout << "Ending connection with Cassandra...";
+
+        //##### Exécution des dernières commandes #####
+        cass_session_execute_batch(session, batch);
+
         //##### Fin de la connexion à la base Cassandra #####
         CassFuture *close_future = cass_session_close(session);
         cass_future_wait(close_future);
         cass_future_free(close_future);
 
         //##### Libération des variables Cassandra #####
+        cass_batch_free(batch);
         cass_cluster_free(cluster);
         cass_session_free(session);
         cout << "done." << endl;
@@ -68,7 +81,7 @@ namespace BGPCassandraInserter {
 
 
     //######################## FONCTION PRINCIPALE ########################
-    bool insert(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
+    int insert(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
         CassStatement *statement;
         if(boost::iequals(dstTable, "ROUTINGEVENT")) {
             statement = addRoutingEventQuery(old_key, old_value);
@@ -80,7 +93,22 @@ namespace BGPCassandraInserter {
             statement = addDefaultQuery(dstTable, set_name, old_key, old_value, old_timestamp);
         }
 
-        bool ret = true;
+
+        cass_batch_add_statement(batch, statement);
+        if(++batch_size >= BATCH_MAX_SIZE) {
+            CassFuture *result_future = cass_session_execute_batch(session, batch);
+            int ret = batch_size;
+            batch_size = 0;
+            if (cass_future_error_code(result_future) != CASS_OK) {
+                const char *message;
+                size_t message_length;
+                cass_future_error_message(result_future, &message, &message_length);
+                fprintf(stderr, "BGPCassandraInserter error: Unable to run query: '%.*s'\n", (int) message_length, message);
+                return 0;
+            }
+            return ret;
+        }
+        /*bool ret = true;
         CassFuture *result_future = cass_session_execute(session, statement);
         if (cass_future_error_code(result_future) != CASS_OK) {
             const char *message;
@@ -89,7 +117,8 @@ namespace BGPCassandraInserter {
             fprintf(stderr, "BGPCassandraInserter error: Unable to run query: '%.*s'\n", (int) message_length, message);
             ret = false;
         }
-        return ret;
+        return ret;*/
+        return 0;
     }
 
 
@@ -104,7 +133,9 @@ namespace BGPCassandraInserter {
         BGPCassandraInserter::cassandra_port = cassandra_port;
     }
 
-
+    void setBatchMaxSize(int max_size) {
+        BATCH_MAX_SIZE = max_size;
+    }
 
 
 
