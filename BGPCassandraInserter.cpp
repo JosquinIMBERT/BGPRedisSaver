@@ -6,6 +6,7 @@
 #include <cassandra.h>
 #include <vector>
 #include <time.h>
+#include <boost/algorithm/string.hpp>
 
 #include "BGPCassandraInserter.h"
 #include "RedisDecode.h"
@@ -69,11 +70,11 @@ namespace BGPCassandraInserter {
     //######################## FONCTION PRINCIPALE ########################
     bool insert(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
         CassStatement *statement;
-        if(dstTable=="ROUTINGEVENT") {
+        if(boost::iequals(dstTable, "ROUTINGEVENT")) {
             statement = addRoutingEventQuery(old_key, old_value);
-        } else if(dstTable=="ASEVENT") {
+        } else if(boost::iequals(dstTable, "ASEVENT")) {
             statement = addASEventQuery(old_key, old_value);
-        } else if(dstTable=="PATH") {
+        } else if(boost::iequals(dstTable, "PATH")) {
             statement = addPathQuery(old_value);
         } else {
             statement = addDefaultQuery(dstTable, set_name, old_key, old_value, old_timestamp);

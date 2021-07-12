@@ -1,4 +1,4 @@
-CREATE KEYSPACE 'BGP_KEYSPACE' WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 3};
+CREATE KEYSPACE BGP_KEYSPACE WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 3};
 
 USE BGP_KEYSPACE;
 

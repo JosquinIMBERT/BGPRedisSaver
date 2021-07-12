@@ -34,7 +34,11 @@ void usage() {
 }
 
 bool est_option_valide(string cmd) {
-    bool estValide = cmd=="-R" || cmd=="-C" || cmd=="-S" || cmd=="-P" || cmd=="-B";
+    bool estValide = boost::iequals(cmd,"-R")
+            || boost::iequals(cmd,"-C")
+            || boost::iequals(cmd,"-S")
+            || boost::iequals(cmd,"-P")
+            || boost::iequals(cmd,"-B");
     return estValide;
 }
 
@@ -49,26 +53,28 @@ int main(int argc, char **argv) {
     //sets.push_back(Ensemble("INACTIVEROUTINGENTRIES", "", MAX_SIZE));
 
     if(argc >= 2) {
-        string argv1(argv[1]); if(argv1=="test") {test::test(); return 0;}
+        string argv1(argv[1]); if(boost::iequals(argv1,"test")) {test::test(); return 0;}
         for(int i=1; i<argc; i++) {
             string cmd(argv[i]);
-            if(cmd=="--help" || !est_option_valide(cmd)) {
+            if(boost::iequals(cmd,"--help") || !est_option_valide(cmd)) {
                 usage();
                 return 0;
             } else {
-                if(cmd=="-R") { //Données de connexion Redis
+                if(boost::iequals(cmd,"-R")) { //Données de connexion Redis
                     string redis_host = argv[++i];
                     int redis_port = atoi(argv[++i]);
                     BGPRedisSaver::setRedis(redis_host, redis_port);
-                } else if(cmd=="-C") { //Données de connexion Cassandra
+                } else if(boost::iequals(cmd,"-C")) { //Données de connexion Cassandra
                     string cassandra_host = argv[++i];
                     int cassandra_port = atoi(argv[++i]);
                     BGPRedisSaver::setCassandra(cassandra_host, cassandra_port);
-                } else if(cmd=="-P") {
+                } else if(boost::iequals(cmd,"-P")) {
                     string str_bool(argv[++i]);
-                    bool print = str_bool=="true" || str_bool=="1";
+                    bool print = boost::iequals(str_bool,"true")
+                            || boost::iequals(str_bool,"1")
+                            || boost::iequals(str_bool, "T");
                     BGPRedisSaver::setPrint(print);
-                } else if(cmd=="-B") {
+                } else if(boost::iequals(cmd,"-B")) {
                     BGPRedisSaver::setSleepDuration(atoi(argv[++i]));
                 } else { //Liste des ensembles
                     sets.clear();
@@ -87,7 +93,9 @@ int main(int argc, char **argv) {
                         string dstTable = "";
                         if(splited_cmd.size()>=4) {
                             string str_static(splited_cmd[3]);
-                            isStatic = str_static=="true" || str_static=="1";
+                            isStatic = boost::iequals(str_static,"true")
+                                    || boost::iequals(str_static,"1")
+                                    || boost::iequals(str_static, "T");
                             if(splited_cmd.size()>=5)
                                 dstTable = splited_cmd[4];
                         }

@@ -7,6 +7,7 @@
 #include <vector>
 #include <cassandra.h>
 #include <sw/redis++/redis++.h>
+#include <boost/algorithm/string.hpp>
 
 #include "BGPRedisSaver.h"
 #include "BGPCassandraInserter.h"
@@ -127,35 +128,34 @@ namespace BGPRedisSaver {
 
     void getKeysToDelete(string keys_set_name, int nb_to_del, unordered_map<string, double> *data) {
         string type = redis.type(keys_set_name);
-        if(type=="zset") {
+        if(boost::iequals(type,"zset")) {
             redis.zrange(keys_set_name, 0, nb_to_del, inserter(*data, data->begin()));
         }
     }
 
     void getOldValues(string values_set_name, string key, vector<string> *toSave) {
         string type = redis.type(values_set_name);
-        if(type=="string") {
+        if(boost::iequals(type,"string")) {
             Optional<string> opt_res = redis.get(key);
             toSave->push_back(opt_res->c_str());
-        } else if(type=="list") {
+        } else if(boost::iequals(type,"list")) {
             redis.lrange(values_set_name, 0, -1, inserter(*toSave, toSave->begin()));
-        } else if(type=="set") {
+        } else if(boost::iequals(type,"set")) {
             redis.smembers(values_set_name, inserter(*toSave, toSave->begin()));
-        } else if(type=="zset") {
+        } else if(boost::iequals(type,"zset")) {
             redis.zrange(values_set_name, 0,-1, inserter(*toSave, toSave->begin()));
-        } else if(type=="hash") {
+        } else if(boost::iequals(type,"hash")) {
             Optional<string> opt_res = redis.hget(values_set_name, key);
             toSave->push_back(key + " " + opt_res->c_str());
-        } else if(type=="stream") {
+        } else if(boost::iequals(type,"stream")) {
             //TODO
         } else { //none
-
         }
     }
 
     void deleteKeys(string keys_set_name, int start, int stop) {
         string type = redis.type(keys_set_name);
-        if(type=="zset") {
+        if(boost::iequals(type,"zset")) {
             redis.zremrangebyrank(keys_set_name, start, stop);
         }
     }
@@ -164,15 +164,15 @@ namespace BGPRedisSaver {
         string type = redis.type(values_set_name);
         if (isStatic) {
             // Remove from a HSet or directly from redis
-            if (type == "string") {
+            if (boost::iequals(type,"string")) {
                 // Suppression du couple clé-valeur de la base Redis
                 redis.del(old_key);
-            } else if (type == "hash") {
+            } else if (boost::iequals(type,"hash")) {
                 // Suppression de l'élément dans le Hash
                 redis.hdel(values_set_name, old_key);
             }
         } else {
-            if (type == "list") {
+            if (boost::iequals(type,"list")) {
                 // Suppression de la liste (Exemple "PRE:pfxID:peer" ou "ASR:ASN") entière
                 redis.del(values_set_name);
             }
@@ -181,17 +181,17 @@ namespace BGPRedisSaver {
 
     int getStructSize(string keys_set_name) {
         string type = redis.type(keys_set_name);
-        if(type=="string") {
+        if(boost::iequals(type,"string")) {
             return 1;
-        } else if(type=="list") {
+        } else if(boost::iequals(type,"list")) {
             return redis.llen(keys_set_name);
-        } else if(type=="set") {
+        } else if(boost::iequals(type,"set")) {
             return redis.scard(keys_set_name);
-        } else if(type=="zset") {
+        } else if(boost::iequals(type,"zset")) {
             return redis.zcount(keys_set_name, UnboundedInterval<double>{});
-        } else if(type=="hash") {
+        } else if(boost::iequals(type,"hash")) {
             return redis.hlen(keys_set_name);
-        } else if(type=="stream") {
+        } else if(boost::iequals(type,"stream")) {
             return redis.xlen(keys_set_name);
         } else { //none
             return 0;

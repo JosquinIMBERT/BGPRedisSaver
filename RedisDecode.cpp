@@ -131,7 +131,7 @@ namespace RedisDecode {
         *meanUp = from_myencoding(values.at(5));
         *meanDown = from_myencoding(values.at(6));
         *collector = to_string(from_myencoding(values.at(7)));
-        *active = (values.at(8)=="T");
+        *active = boost::iequals(values.at(8),"T");
     }
 
 

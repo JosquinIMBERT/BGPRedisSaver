@@ -12,29 +12,6 @@
 
 using namespace std;
 
-/*vector<string> fromRedis(string str){
-    vector<string> results;
-    vector<unsigned int> pathVect;
-    results.clear();
-    boost::split(results,str, [](char c){return c == ':';});
-    int i=0;
-    hash = from_myencoding(results[i++]);
-    from_myencodingPath(results[i++], pathVect);
-    shortPathLength = pathVect.size();
-    shortPath = new unsigned int[shortPathLength];
-    memcpy(shortPath,&pathVect[0],sizeof(unsigned int)*shortPathLength);
-    pathLength = from_myencoding(results[i++]);
-    prefNum = from_myencoding(results[i++]);
-    lastChange  = from_myencoding(results[i++]);
-    meanUp= from_myencoding(results[i++])/10000;
-    meanDown = from_myencoding(results[i++])/10000;
-    collector= from_myencoding(results[i++]);
-    if (results[i++] == "T")
-        active = true;
-    else
-        active = false;
-}*/
-
 unsigned int from_myencoding(string str){
     unsigned int val=0,coef=1,l;
     for(unsigned long i=0;i<str.length();i++){
@@ -83,6 +60,27 @@ string from_myencodingPref(string str, bgpstream_pfx_t *inpfx) {
 
 void test::test() {
     cout << "######################## Tests ########################" << endl;
+
+
+    cout << endl << endl << endl << endl;
+
+    cout << "Décodage" << endl;
+    cout << "valeur : " << from_myencoding("\"+e") << endl;
+
+    cout << endl << endl << endl << endl;
+
+
+
+
+
+    cout << "Comparaison 'case-insensitive' :" << endl;
+    string str1 = "West";
+    string str2 = "TEST";
+    cout << "On compare " << str1 << " avec " << str2 << endl;
+    cout << "Résultat : " << boost::iequals(str1, str2) << endl;
+
+
+
 
 
     bgpstream_pfx_t prefix;
