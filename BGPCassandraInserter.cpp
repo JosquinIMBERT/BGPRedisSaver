@@ -97,8 +97,11 @@ namespace BGPCassandraInserter {
         cass_batch_add_statement(batch, statement);
         if(++batch_size >= BATCH_MAX_SIZE) {
             CassFuture *result_future = cass_session_execute_batch(session, batch);
+
+            //TODO vérifier que ces deux lignes sont nécessaires
             cass_batch_free(batch);
             batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
+
             int ret = batch_size;
             batch_size = 0;
             if (cass_future_error_code(result_future) != CASS_OK) {

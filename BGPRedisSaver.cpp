@@ -60,7 +60,7 @@ namespace BGPRedisSaver {
             string values_set_name = sets[i].getValues();
             int set_size = sets[i].getSize();
             int nb_element = getStructSize(keys_set_name);
-            int nb_to_del =  nb_element - set_size;
+            int nb_to_del =  nb_element - set_size; //TODO : MAX : 1000 puis utiliser pipeline (batch)
 
 
             printSetInfo(keys_set_name, set_size, nb_element, nb_to_del);
@@ -143,7 +143,9 @@ namespace BGPRedisSaver {
         string type = redis.type(values_set_name);
         if(boost::iequals(type,"string")) {
             Optional<string> opt_res = redis.get(key);
-            toSave->push_back(opt_res->c_str());
+            if(opt_res) {
+                toSave->push_back(opt_res->c_str());
+            }
         } else if(boost::iequals(type,"list")) {
             redis.lrange(values_set_name, 0, -1, inserter(*toSave, toSave->begin()));
         } else if(boost::iequals(type,"set")) {
@@ -152,7 +154,9 @@ namespace BGPRedisSaver {
             redis.zrange(values_set_name, 0,-1, inserter(*toSave, toSave->begin()));
         } else if(boost::iequals(type,"hash")) {
             Optional<string> opt_res = redis.hget(values_set_name, key);
-            toSave->push_back(key + " " + opt_res->c_str());
+            if(opt_res) {
+                toSave->push_back(opt_res->c_str());
+            }
         } else if(boost::iequals(type,"stream")) {
             //TODO
         } else { //none
