@@ -18,17 +18,18 @@ namespace BGPRedisSaver {
     void run(std::vector<Ensemble> sets);
     void stopTransfer();
     void setRedis(std::string redis_host, int redis_port);
+    void setBatchMaxSize(int max_size);
     void setCassandra(std::string cassandra_host, int cassandra_port);
-    void getKeysToDelete(std::string keys_set_name, int nb_to_del, std::unordered_map<std::string, double> *data);
-    void getOldValues(std::string values_set_name, std::string key, std::vector<std::string> *toSave);
-    void deleteKeys(std::string keys_set_name, int start, int stop);
-    void deleteValues(std::string values_set_name, std::string old_key, bool isStatic);
-    int getStructSize(std::string keys_set_name);
+    void getKeysToDelete(std::string keys_set_name, std::string type, int nb_to_del, std::unordered_map<std::string, double> *data);
+    void getOldValues(std::string values_set_name, std::string type, std::string key, std::vector<std::string> *toSave);
+    void deleteKeys(std::string keys_set_name, std::string type, int start, int stop);
+    void deleteValues(std::string values_set_name, std::string type, std::string old_key, bool isStatic);
+    int getStructSize(std::string keys_set_name, std::string type);
 
     void setPrint(bool p);
     void setSleepDuration(int sleep);
 
-    void printSetInfo(std::string keys_set_name, int set_size, int nb_element, int nb_to_del);
+    void printSetInfo(std::string keys_set_name, std::string type, int set_size, int nb_element, int nb_to_del);
     void printInfo(std::string initial_tab, int ind, std::string values_set_name, std::string old_key, std::vector<std::string> toSave, int success);
 }
 

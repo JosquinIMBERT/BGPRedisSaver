@@ -19,7 +19,7 @@ namespace BGPCassandraInserter {
 
     CassBatch *batch;
     int batch_size;
-    int BATCH_MAX_SIZE = 3;
+    int BATCH_MAX_SIZE = 1000;
 
     string cassandra_host="127.0.0.1";
     int cassandra_port=9042;

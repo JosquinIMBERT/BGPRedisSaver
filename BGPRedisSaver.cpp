@@ -24,6 +24,7 @@ namespace BGPRedisSaver {
     string redis_host="127.0.0.1";
     int redis_port=6379;
     sw::redis::Redis redis = sw::redis::Redis("tcp://127.0.0.1:6379");
+    int BATCH_MAX_SIZE = 1000;
 
     void init_connections() {
         cout << "Connecting to Redis...";
@@ -57,19 +58,23 @@ namespace BGPRedisSaver {
         int i=0;
         while (!stop) {
             string keys_set_name = sets[i].getKeys();
+            string keys_type = redis.type(keys_set_name);
             string values_set_name = sets[i].getValues();
             int set_size = sets[i].getSize();
-            int nb_element = getStructSize(keys_set_name);
-            int nb_to_del =  nb_element - set_size; //TODO : MAX : 1000 puis utiliser pipeline (batch)
+            int nb_element = getStructSize(keys_set_name, keys_type);
+            int nb_to_del =  nb_element - set_size;
+            if(nb_to_del > BATCH_MAX_SIZE) {
+                nb_to_del = BATCH_MAX_SIZE;
+            }
 
 
-            printSetInfo(keys_set_name, set_size, nb_element, nb_to_del);
+            printSetInfo(keys_set_name, keys_type, set_size, nb_element, nb_to_del);
 
 
             if(nb_to_del>0) {
                 // Trouver les données à transférer
                 unordered_map<string, double> keys; //Recherche de la donnée à supprimer
-                getKeysToDelete(keys_set_name, nb_to_del, &keys);
+                getKeysToDelete(keys_set_name, keys_type, nb_to_del, &keys);
 
                 if (keys.empty()) {
                     if(print) cout << "\t\t-Nothing to delete for the set." << endl;
@@ -88,13 +93,14 @@ namespace BGPRedisSaver {
                     const char *old_key = key.first.c_str();
                     if (!sets[i].isStatic())
                         values_set_name = sets[i].getValues(old_key);
+                    string values_type = redis.type(values_set_name);
                     int old_timestamp = key.second;
                     vector<string> toSave;
-                    getOldValues(values_set_name, old_key, &toSave);
+                    getOldValues(values_set_name, values_type, old_key, &toSave);
 
                     //Supprimer la donnée de Redis
-                    deleteKeys(keys_set_name, 0, 0); //Suppression de la clé dans l'ensemble Redis
-                    deleteValues(values_set_name, old_key, sets[i].isStatic());
+                    deleteKeys(keys_set_name, keys_type, 0, 0); //Suppression de la clé dans l'ensemble Redis
+                    deleteValues(values_set_name, values_type, old_key, sets[i].isStatic());
 
                     int success = 0;
                     //Ajouter la donnée à Cassandra
@@ -128,19 +134,22 @@ namespace BGPRedisSaver {
         BGPRedisSaver::redis_port = redis_port;
     }
 
+    void setBatchMaxSize(int max_size) {
+        BATCH_MAX_SIZE = max_size;
+        BGPCassandraInserter::setBatchMaxSize(max_size);
+    }
+
     void setCassandra(std::string cassandra_host, int cassandra_port) {
         BGPCassandraInserter::setCassandra(cassandra_host, cassandra_port);
     }
 
-    void getKeysToDelete(string keys_set_name, int nb_to_del, unordered_map<string, double> *data) {
-        string type = redis.type(keys_set_name);
+    void getKeysToDelete(string keys_set_name, string type, int nb_to_del, unordered_map<string, double> *data) {
         if(boost::iequals(type,"zset")) {
             redis.zrange(keys_set_name, 0, nb_to_del-1, inserter(*data, data->begin()));
         }
     }
 
-    void getOldValues(string values_set_name, string key, vector<string> *toSave) {
-        string type = redis.type(values_set_name);
+    void getOldValues(string values_set_name, string type, string key, vector<string> *toSave) {
         if(boost::iequals(type,"string")) {
             Optional<string> opt_res = redis.get(key);
             if(opt_res) {
@@ -163,15 +172,13 @@ namespace BGPRedisSaver {
         }
     }
 
-    void deleteKeys(string keys_set_name, int start, int stop) {
-        string type = redis.type(keys_set_name);
+    void deleteKeys(string keys_set_name, string type, int start, int stop) {
         if(boost::iequals(type,"zset")) {
             redis.zremrangebyrank(keys_set_name, start, stop);
         }
     }
 
-    void deleteValues(string values_set_name, string old_key, bool isStatic) {
-        string type = redis.type(values_set_name);
+    void deleteValues(string values_set_name, string type, string old_key, bool isStatic) {
         if (isStatic) {
             // Remove from a HSet or directly from redis
             if (boost::iequals(type,"string")) {
@@ -189,8 +196,7 @@ namespace BGPRedisSaver {
         }
     }
 
-    int getStructSize(string keys_set_name) {
-        string type = redis.type(keys_set_name);
+    int getStructSize(string keys_set_name, string type) {
         if(boost::iequals(type,"string")) {
             return 1;
         } else if(boost::iequals(type,"list")) {
@@ -221,10 +227,10 @@ namespace BGPRedisSaver {
 
 
 
-    void printSetInfo(string keys_set_name, int set_size, int nb_element, int nb_to_del) {
+    void printSetInfo(string keys_set_name, string type, int set_size, int nb_element, int nb_to_del) {
         if(print) {
             cout << endl << keys_set_name << " :" << endl;
-            cout << "\t-type: " << redis.type(keys_set_name) << endl;
+            cout << "\t-type: " << type << endl;
             cout << "\t-size: " << set_size << endl;
             cout << "\t-nb_element: " << nb_element << endl;
             cout << "\t-nb_to_del: " << ((nb_to_del>0) ? nb_to_del : 0) << endl;

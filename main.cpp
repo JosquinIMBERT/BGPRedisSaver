@@ -81,6 +81,7 @@ int main(int argc, char **argv) {
                     BGPRedisSaver::setSleepDuration(atoi(argv[++i]));
                 } else if(boost::iequals(cmd, "-N")) { //Nombre de commandes accumulables (BATCH_SIZE)
                     int batch_max_size = atoi(argv[++i]);
+                    BGPRedisSaver::setBatchMaxSize(batch_max_size);
                     BGPCassandraInserter::setBatchMaxSize(batch_max_size);
                 } else { //Liste des ensembles
                     sets.clear();
