@@ -10,8 +10,10 @@
 
 using namespace std;
 
+BGPRedisSaver redis_saver;
+
 void sigint_handler(int signum) {
-    BGPRedisSaver::stopTransfer();
+    redis_saver.stopTransfer();
 }
 
 void usage() {
@@ -49,11 +51,9 @@ int main(int argc, char **argv) {
     const int MAX_SIZE = 496460;
 
     vector<Ensemble> sets;
-    //sets.push_back(Ensemble("PREFIXES", "", MAX_SIZE));
     sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "PATH"));
-    //sets.push_back(Ensemble("INACTIVEPATHS", "", MAX_SIZE));
     sets.push_back(Ensemble("ROUTINGENTRIES", "PRE", 3032520, false, "ROUTINGEVENT"));
-    //sets.push_back(Ensemble("INACTIVEROUTINGENTRIES", "", MAX_SIZE));
+
 
     if(argc >= 2) {
         string argv1(argv[1]); if(boost::iequals(argv1,"test")) {test::test(); return 0;}
@@ -66,22 +66,22 @@ int main(int argc, char **argv) {
                 if(boost::iequals(cmd,"-R")) { //Données de connexion Redis
                     string redis_host = argv[++i];
                     int redis_port = atoi(argv[++i]);
-                    BGPRedisSaver::setRedis(redis_host, redis_port);
+                    redis_saver.setRedis(redis_host, redis_port);
                 } else if(boost::iequals(cmd,"-C")) { //Données de connexion Cassandra
                     string cassandra_host = argv[++i];
                     int cassandra_port = atoi(argv[++i]);
-                    BGPRedisSaver::setCassandra(cassandra_host, cassandra_port);
+                    redis_saver.setCassandra(cassandra_host, cassandra_port);
                 } else if(boost::iequals(cmd,"-P")) { //Print (boolean)
                     string str_bool(argv[++i]);
                     bool print = boost::iequals(str_bool,"true")
                             || boost::iequals(str_bool,"1")
                             || boost::iequals(str_bool, "T");
-                    BGPRedisSaver::setPrint(print);
+                    redis_saver.setPrint(print);
                 } else if(boost::iequals(cmd,"-B")) { //Break duration
-                    BGPRedisSaver::setSleepDuration(atoi(argv[++i]));
+                    redis_saver.setSleepDuration(atoi(argv[++i]));
                 } else if(boost::iequals(cmd, "-N")) { //Nombre de commandes accumulables (BATCH_SIZE)
                     int batch_max_size = atoi(argv[++i]);
-                    BGPRedisSaver::setBatchMaxSize(batch_max_size);
+                    redis_saver.setBatchMaxSize(batch_max_size);
                 } else { //Liste des ensembles
                     sets.clear();
                     i++;
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, sigint_handler);
 
-    BGPRedisSaver::run(sets);
+    redis_saver.run(sets);
 
     return 0;
 }
