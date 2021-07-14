@@ -3,7 +3,7 @@ project(BGPRedisSaver)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(BGPRedisSaver main.cpp BGPRedisSaver.h BGPRedisSaver.cpp BGPCassandraInserter.cpp BGPCassandraInserter.h Ensemble.cpp Ensemble.h test.cpp test.h ValueToSave.cpp ValueToSave.h RedisDecode.cpp RedisDecode.h)
+add_executable(BGPRedisSaver main.cpp BGPRedisSaver.h BGPRedisSaver.cpp BGPCassandraInserter.cpp BGPCassandraInserter.h Ensemble.cpp Ensemble.h test.cpp test.h RedisDecode.cpp RedisDecode.h)
 
 
 # <------------ add hiredis dependency --------------->

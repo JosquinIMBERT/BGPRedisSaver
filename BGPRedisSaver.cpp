@@ -12,7 +12,6 @@
 #include "BGPRedisSaver.h"
 #include "BGPCassandraInserter.h"
 #include "Ensemble.h"
-#include "ValueToSave.h"
 
 using namespace sw::redis;
 using namespace std;

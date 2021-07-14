@@ -7,7 +7,6 @@
 #include <sw/redis++/redis++.h>
 
 #include "Ensemble.h"
-#include "ValueToSave.h"
 
 #ifndef BGPREDISSAVER_BGPREDISSAVER_H
 #define BGPREDISSAVER_BGPREDISSAVER_H
