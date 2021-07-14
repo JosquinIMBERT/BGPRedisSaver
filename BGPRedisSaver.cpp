@@ -24,6 +24,7 @@ namespace BGPRedisSaver {
     int redis_port=6379;
     sw::redis::Redis redis = sw::redis::Redis("tcp://127.0.0.1:6379");
     int BATCH_MAX_SIZE = 1000;
+    BGPCassandraInserter cass_inserter;
 
     void init_connections() {
         cout << "Connecting to Redis...";
@@ -39,11 +40,11 @@ namespace BGPRedisSaver {
             exit(0);
         }
 
-        BGPCassandraInserter::init_connections();
+        cass_inserter.init_connections();
     }
 
     void end_connections() {
-        BGPCassandraInserter::end_connections();
+        cass_inserter.end_connections();
         cout << "Ending connection with Redis...done." << endl;
     }
 
@@ -106,7 +107,7 @@ namespace BGPRedisSaver {
                     for(auto val : toSave) {
                         //if(BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp))
                         //    success++;
-                        success += BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp);
+                        success += cass_inserter.insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp);
                     }
 
                     printInfo("\t\t", cpt, values_set_name, old_key, toSave, success);
@@ -135,11 +136,11 @@ namespace BGPRedisSaver {
 
     void setBatchMaxSize(int max_size) {
         BATCH_MAX_SIZE = max_size;
-        BGPCassandraInserter::setBatchMaxSize(max_size);
+        cass_inserter.setBatchMaxSize(max_size);
     }
 
     void setCassandra(std::string cassandra_host, int cassandra_port) {
-        BGPCassandraInserter::setCassandra(cassandra_host, cassandra_port);
+        cass_inserter.setCassandra(cassandra_host, cassandra_port);
     }
 
     void getKeysToDelete(string keys_set_name, string type, int nb_to_del, unordered_map<string, double> *data) {
