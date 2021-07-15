@@ -15,6 +15,8 @@
 class BGPRedisSaver {
 public:
 //#################### METHODES PUBLIQUES ####################
+    BGPRedisSaver();
+    BGPRedisSaver(std::string host, int port);
     void init_connections();
     void end_connections();
     void run(std::vector<Ensemble> sets);
@@ -35,6 +37,7 @@ private:
     std::string redis_host="127.0.0.1";
     int redis_port=6379;
     sw::redis::Redis redis = sw::redis::Redis("tcp://127.0.0.1:6379");
+    sw::redis::QueuedRedis<sw::redis::PipelineImpl> redis_pipe = redis.pipeline();
 
     BGPCassandraInserter cass_inserter;
 

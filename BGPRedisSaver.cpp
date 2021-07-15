@@ -16,6 +16,12 @@
 using namespace sw::redis;
 using namespace std;
 
+BGPRedisSaver::BGPRedisSaver() {}
+BGPRedisSaver::BGPRedisSaver(std::string host, int port) {
+    this->redis_host = host;
+    this->redis_port = port;
+}
+
 void BGPRedisSaver::init_connections() {
     cout << "Connecting to Redis...";
     try {
@@ -23,6 +29,7 @@ void BGPRedisSaver::init_connections() {
         connection_options.host = redis_host;
         connection_options.port = redis_port;
         redis = Redis(connection_options);
+        redis_pipe = redis.pipeline();
         cout << "done." << endl;
     } catch (const Error &e) {
         cout << "failed." << endl;
@@ -89,7 +96,6 @@ void BGPRedisSaver::run(vector<Ensemble> sets) {
                 getOldValues(values_set_name, values_type, old_key, &toSave);
 
                 //Supprimer la donnée de Redis
-                deleteKeys(keys_set_name, keys_type, 0, 0); //Suppression de la clé dans l'ensemble Redis
                 deleteValues(values_set_name, values_type, old_key, sets[i].isStatic());
 
                 int success = 0;
@@ -102,10 +108,10 @@ void BGPRedisSaver::run(vector<Ensemble> sets) {
 
                 printInfo("\t\t", cpt, values_set_name, old_key, toSave, success);
 
-                //TODO Ajouter un indicateur de la suppression dans Redis
-
                 cpt++;
             }
+            deleteKeys(keys_set_name, keys_type, 0, cpt-1);
+            redis_pipe.exec();
         }
         i = (i+1) % sets.size();
         if(!stop) sleep(sleep_duration);
@@ -157,14 +163,13 @@ void BGPRedisSaver::getOldValues(string values_set_name, string type, string key
             toSave->push_back(opt_res->c_str());
         }
     } else if(boost::iequals(type,"stream")) {
-        //TODO
     } else { //none
     }
 }
 
 void BGPRedisSaver::deleteKeys(string keys_set_name, string type, int start, int stop) {
     if(boost::iequals(type,"zset")) {
-        redis.zremrangebyrank(keys_set_name, start, stop);
+        redis_pipe.zremrangebyrank(keys_set_name, start, stop);
     }
 }
 
@@ -173,15 +178,15 @@ void BGPRedisSaver::deleteValues(string values_set_name, string type, string old
         // Remove from a HSet or directly from redis
         if (boost::iequals(type,"string")) {
             // Suppression du couple clé-valeur de la base Redis
-            redis.del(old_key);
+            redis_pipe.del(old_key);
         } else if (boost::iequals(type,"hash")) {
             // Suppression de l'élément dans le Hash
-            redis.hdel(values_set_name, old_key);
+            redis_pipe.hdel(values_set_name, old_key);
         }
     } else {
         if (boost::iequals(type,"list")) {
             // Suppression de la liste (Exemple "PRE:pfxID:peer" ou "ASR:ASN") entière
-            redis.del(values_set_name);
+            redis_pipe.del(values_set_name);
         }
     }
 }
