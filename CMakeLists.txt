@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 project(BGPRedisSaver)
 
 set(CMAKE_CXX_STANDARD 14)
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 
 add_executable(BGPRedisSaver main.cpp BGPRedisSaver.h BGPRedisSaver.cpp BGPCassandraInserter.cpp BGPCassandraInserter.h Ensemble.cpp Ensemble.h test.cpp test.h RedisDecode.cpp RedisDecode.h)
 

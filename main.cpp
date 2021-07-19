@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <signal.h>
+#include <thread>
 #include <boost/algorithm/string.hpp>
 
 #include "test.h"
@@ -10,10 +11,13 @@
 
 using namespace std;
 
-BGPRedisSaver redis_saver;
+mutex mtx_stop;
+int nb_threads = 1;
+vector<thread> threads;
+vector<BGPRedisSaver> savers;
 
 void sigint_handler(int signum) {
-    redis_saver.stopTransfer();
+    mtx_stop.unlock();
 }
 
 void usage() {
@@ -26,6 +30,7 @@ void usage() {
     cout << "\t\t -P <bool> \t\t\t\t\t\t\t Autoriser ou non les affichages" << endl;
     cout << "\t\t -N <BATCH_MAX_SIZE> \t\t\t\t Nombre de valeurs accumulées avant l'insertion effective dans Cassandra" << endl;
     cout << "\t\t -B <sleep> \t\t\t\t\t\t Entier définissant le temps de pause entre l'analyse de 2 ensembles" << endl;
+    cout << "\t\t -T <threads> \t\t\t\t\t\t Entier représentant le nombre de threads que l'on souhaite utiliser" << endl;
     cout << "\t\t --help \t\t\t\t\t\t\t Afficher cette page d'aide" << endl;
     cout << "\t\t -S <set1> [<set2> [<set3> [...]]] \t <set> correspond à <keys,values,size[,static[,dstTable]]> avec :" << endl;
     cout << "\t\t\t\t -keys: Nom de l'ensemble des clés." << endl;
@@ -43,17 +48,32 @@ bool est_option_valide(string cmd) {
             || boost::iequals(cmd,"-S")
             || boost::iequals(cmd,"-P")
             || boost::iequals(cmd,"-B")
-            || boost::iequals(cmd, "-N");
+            || boost::iequals(cmd, "-N")
+            || boost::iequals(cmd, "-T");
     return estValide;
+}
+
+void launcher(int i) {
+    savers.at(i).run();
 }
 
 int main(int argc, char **argv) {
     const int MAX_SIZE = 496460;
+    mtx_stop.lock();
+
+    string redis_host = "127.0.0.1";
+    int redis_port = 6379;
+
+    string cassandra_host = "127.0.0.1";
+    int cassandra_port = 9042;
+
+    bool print = false;
+    int sleep_duration = 2;
+    int batch_max_size = 4;
 
     vector<Ensemble> sets;
     sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "PATH"));
     sets.push_back(Ensemble("ROUTINGENTRIES", "PRE", 3032520, false, "ROUTINGEVENT"));
-
 
     if(argc >= 2) {
         string argv1(argv[1]); if(boost::iequals(argv1,"test")) {test::test(); return 0;}
@@ -64,24 +84,22 @@ int main(int argc, char **argv) {
                 return 0;
             } else {
                 if(boost::iequals(cmd,"-R")) { //Données de connexion Redis
-                    string redis_host = argv[++i];
-                    int redis_port = atoi(argv[++i]);
-                    redis_saver.setRedis(redis_host, redis_port);
+                    redis_host = argv[++i];
+                    redis_port = atoi(argv[++i]);
                 } else if(boost::iequals(cmd,"-C")) { //Données de connexion Cassandra
-                    string cassandra_host = argv[++i];
-                    int cassandra_port = atoi(argv[++i]);
-                    redis_saver.setCassandra(cassandra_host, cassandra_port);
+                    cassandra_host = argv[++i];
+                    cassandra_port = atoi(argv[++i]);
                 } else if(boost::iequals(cmd,"-P")) { //Print (boolean)
                     string str_bool(argv[++i]);
-                    bool print = boost::iequals(str_bool,"true")
+                    print = boost::iequals(str_bool,"true")
                             || boost::iequals(str_bool,"1")
                             || boost::iequals(str_bool, "T");
-                    redis_saver.setPrint(print);
                 } else if(boost::iequals(cmd,"-B")) { //Break duration
-                    redis_saver.setSleepDuration(atoi(argv[++i]));
+                    sleep_duration = atoi(argv[++i]);
                 } else if(boost::iequals(cmd, "-N")) { //Nombre de commandes accumulables (BATCH_SIZE)
-                    int batch_max_size = atoi(argv[++i]);
-                    redis_saver.setBatchMaxSize(batch_max_size);
+                    batch_max_size = atoi(argv[++i]);
+                } else if(boost::iequals(cmd, "-T")) { //Nombre de threads
+                    nb_threads = atoi(argv[++i]);
                 } else { //Liste des ensembles
                     sets.clear();
                     i++;
@@ -120,7 +138,23 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, sigint_handler);
 
-    redis_saver.run(sets);
+    for(int i=0; i<nb_threads; i++) {
+        savers.push_back(BGPRedisSaver(i,
+                                       &mtx_stop,
+                                       print,
+                                       sleep_duration,
+                                       batch_max_size,
+                                       redis_host,
+                                       redis_port,
+                                       cassandra_host,
+                                       cassandra_port,
+                                       &sets));
+        threads.push_back(thread(launcher, i));
+    }
+
+    for(int i=0; i<nb_threads; i++) {
+        threads.at(i).join();
+    }
 
     return 0;
 }

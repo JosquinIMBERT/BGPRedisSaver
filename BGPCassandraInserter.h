@@ -11,6 +11,8 @@
 class BGPCassandraInserter {
 public:
 //#################### METHODES PUBLIQUES ####################
+    BGPCassandraInserter();
+    BGPCassandraInserter(std::string host, int port, int batchMaxSize);
     void init_connections();
     void end_connections();
     int insert(std::string dstTable, std::string set_name, std::string old_key, std::string old_value, unsigned int old_timestamp);

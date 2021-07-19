@@ -15,21 +15,25 @@
 class BGPRedisSaver {
 public:
 //#################### METHODES PUBLIQUES ####################
-    BGPRedisSaver();
-    BGPRedisSaver(std::string host, int port);
+    BGPRedisSaver(const BGPRedisSaver &src);
+    BGPRedisSaver(int i,
+                  std::mutex *mtx_stop,
+                  bool print,
+                  int sleep_duration,
+                  int BATCH_MAX_SIZE,
+                  std::string redis_host,
+                  int redis_port,
+                  std::string cassandra_host,
+                  int cassandra_port,
+                  std::vector<Ensemble> *sets);
     void init_connections();
     void end_connections();
-    void run(std::vector<Ensemble> sets);
-    void stopTransfer();
-    void setRedis(std::string redis_host, int redis_port);
-    void setBatchMaxSize(int max_size);
-    void setCassandra(std::string cassandra_host, int cassandra_port);
-    void setPrint(bool p);
-    void setSleepDuration(int sleep);
+    void run();
 
 private:
 //#################### ATTRIBUTS PRIVES ####################
-    bool stop = false;
+    int id;
+    std::mutex *mtx_stop;
     bool print = false;
     int sleep_duration = 2;
     int BATCH_MAX_SIZE = 1000;
@@ -39,14 +43,21 @@ private:
     sw::redis::Redis redis = sw::redis::Redis("tcp://127.0.0.1:6379");
     sw::redis::QueuedRedis<sw::redis::PipelineImpl> redis_pipe = redis.pipeline();
 
+    std::vector<Ensemble> *sets;
     BGPCassandraInserter cass_inserter;
 
 
 //#################### METHODES PRIVEES ####################
-    void getKeysToDelete(std::string keys_set_name, std::string type, int nb_to_del, std::unordered_map<std::string, double> *data);
-    void getOldValues(std::string values_set_name, std::string type, std::string key, std::vector<std::string> *toSave);
-    void deleteKeys(std::string keys_set_name, std::string type, int start, int stop);
-    void deleteValues(std::string values_set_name, std::string type, std::string old_key, bool isStatic);
+    void getRemoveKeys(std::string keys_set_name,
+                      std::string type,
+                      int nb_to_del,
+                      std::unordered_map<std::string, double> *keys);
+    void getRemoveValues(std::string values_set_name,
+                         std::string values_type,
+                         std::string old_key,
+                         std::vector<std::string> *toSave);
+    void getValues(std::string values_set_name, std::string type, std::string key, std::vector<std::string> *toSave);
+    void removeValues(std::string values_set_name, std::string type, std::string old_key);
     int getStructSize(std::string keys_set_name, std::string type);
 
     void printSetInfo(std::string keys_set_name, std::string type, int set_size, int nb_element, int nb_to_del);

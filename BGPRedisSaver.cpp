@@ -5,23 +5,86 @@
 #include <iostream>
 #include <unistd.h>
 #include <vector>
-#include <cassandra.h>
 #include <sw/redis++/redis++.h>
 #include <boost/algorithm/string.hpp>
 
 #include "BGPRedisSaver.h"
 #include "BGPCassandraInserter.h"
-#include "Ensemble.h"
 
 using namespace sw::redis;
 using namespace std;
 
-BGPRedisSaver::BGPRedisSaver() {}
-BGPRedisSaver::BGPRedisSaver(std::string host, int port) {
-    this->redis_host = host;
-    this->redis_port = port;
+
+
+
+
+//################################ CONSTRUCTEURS ################################
+BGPRedisSaver::BGPRedisSaver(const BGPRedisSaver &src) {
+    mtx_stop = src.mtx_stop;
+    print = src.print;
+    sleep_duration = src.sleep_duration;
+    BATCH_MAX_SIZE = src.BATCH_MAX_SIZE;
+
+    redis_host=src.redis_host;
+    redis_port=src.redis_port;
+
+    ConnectionOptions connection_options;
+    connection_options.host = this->redis_host;
+    connection_options.port = this->redis_port;
+    this->redis = Redis(connection_options);
+
+    redis_pipe = this->redis.pipeline();
+
+    sets = src.sets;
+    cass_inserter = src.cass_inserter;
+}
+BGPRedisSaver::BGPRedisSaver(int i,
+                            mutex *mtx_stop,
+                            bool print,
+                            int sleep_duration,
+                            int BATCH_MAX_SIZE,
+                            string redis_host,
+                            int redis_port,
+                            string cassandra_host,
+                            int cassandra_port,
+                            vector<Ensemble> *sets) {
+    this->id = i;
+    this->mtx_stop = mtx_stop;
+    this->print = print;
+    this->sleep_duration = sleep_duration;
+    this->BATCH_MAX_SIZE = BATCH_MAX_SIZE;
+
+    this->redis_host= redis_host;
+    this->redis_port= redis_port;
+
+    ConnectionOptions connection_options;
+    connection_options.host = this->redis_host;
+    connection_options.port = this->redis_port;
+    this->redis = Redis(connection_options);
+
+    this->redis_pipe = this->redis.pipeline();
+
+    this->sets = sets;
+
+    this->cass_inserter = BGPCassandraInserter(cassandra_host, cassandra_port, this->BATCH_MAX_SIZE);
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//################################ METHODES LIEES A LA CONNEXION ################################
 void BGPRedisSaver::init_connections() {
     cout << "Connecting to Redis...";
     try {
@@ -45,19 +108,34 @@ void BGPRedisSaver::end_connections() {
     cout << "Ending connection with Redis...done." << endl;
 }
 
-void BGPRedisSaver::run(vector<Ensemble> sets) {
-    if(sets.empty()) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//################################ METHODES EXECUTEES PAR LE THREAD ################################
+void BGPRedisSaver::run() {
+    if(sets->empty()) {
         cerr << "BGPRedisServer::run received empty list of sets" << endl;
         return;
     }
     init_connections();
 
     int i=0;
-    while (!stop) {
-        string keys_set_name = sets[i].getKeys();
+    while (!mtx_stop->try_lock()) {
+        string keys_set_name = sets->at(i).getKeys();
         string keys_type = redis.type(keys_set_name);
-        string values_set_name = sets[i].getValues();
-        int set_size = sets[i].getSize();
+
+        int set_size = sets->at(i).getSize();
         int nb_element = getStructSize(keys_set_name, keys_type);
         int nb_to_del =  nb_element - set_size;
         if(nb_to_del > BATCH_MAX_SIZE) {
@@ -71,123 +149,112 @@ void BGPRedisSaver::run(vector<Ensemble> sets) {
         if(nb_to_del>0) {
             // Trouver les données à transférer
             unordered_map<string, double> keys; //Recherche de la donnée à supprimer
-            getKeysToDelete(keys_set_name, keys_type, nb_to_del, &keys);
-
-            if (keys.empty()) {
-                if(print) cout << "\t\t-Nothing to delete for the set." << endl;
-                i = (i+1) % sets.size();
-                continue;
-            }
+            getRemoveKeys(keys_set_name, keys_type, nb_to_del, &keys);
 
             int cpt=0;
             // Parcourir ces données
             for (auto key : keys) {
-                if(stop) {
-                    cout << cpt << " keys deleted on " << nb_to_del << endl;
-                    break;
-                }
                 // Récupérer la donnée à transférer
                 const char *old_key = key.first.c_str();
-                if (!sets[i].isStatic())
-                    values_set_name = sets[i].getValues(old_key);
-                string values_type = redis.type(values_set_name);
                 int old_timestamp = key.second;
-                vector<string> toSave;
-                getOldValues(values_set_name, values_type, old_key, &toSave);
 
-                //Supprimer la donnée de Redis
-                deleteValues(values_set_name, values_type, old_key, sets[i].isStatic());
+                string values_set_name = sets->at(i).getValues(old_key);
+                string values_type = redis.type(values_set_name);
+                vector<string> toSave;
+
+                getRemoveValues(values_set_name, values_type, old_key, &toSave);
 
                 int success = 0;
                 //Ajouter la donnée à Cassandra
                 for(auto val : toSave) {
-                    //if(BGPCassandraInserter::insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp))
-                    //    success++;
-                    success += cass_inserter.insert(sets[i].getDstTable(), keys_set_name, old_key, val, old_timestamp);
+                    success += cass_inserter.insert(sets->at(i).getDstTable(), keys_set_name, old_key, val, old_timestamp);
                 }
 
                 printInfo("\t\t", cpt, values_set_name, old_key, toSave, success);
 
                 cpt++;
             }
-            deleteKeys(keys_set_name, keys_type, 0, cpt-1);
-            redis_pipe.exec();
         }
-        i = (i+1) % sets.size();
-        if(!stop) sleep(sleep_duration);
+        i = (i+1) % sets->size();
+        sleep(sleep_duration);
     }
+    mtx_stop->unlock();
 
     end_connections();
 }
 
-void BGPRedisSaver::stopTransfer() {
-    stop = true;
 
-}
 
-void BGPRedisSaver::setRedis(std::string redis_host, int redis_port) {
-    BGPRedisSaver::redis_host = redis_host;
-    BGPRedisSaver::redis_port = redis_port;
-}
 
-void BGPRedisSaver::setBatchMaxSize(int max_size) {
-    BATCH_MAX_SIZE = max_size;
-    cass_inserter.setBatchMaxSize(max_size);
-}
 
-void BGPRedisSaver::setCassandra(std::string cassandra_host, int cassandra_port) {
-    cass_inserter.setCassandra(cassandra_host, cassandra_port);
-}
 
-void BGPRedisSaver::getKeysToDelete(string keys_set_name, string type, int nb_to_del, unordered_map<string, double> *data) {
-    if(boost::iequals(type,"zset")) {
-        redis.zrange(keys_set_name, 0, nb_to_del-1, inserter(*data, data->begin()));
+
+
+
+
+
+
+
+
+//################################ METHODES DE MANIPULATION DES DONNEES REDIS ################################
+void BGPRedisSaver::getRemoveKeys(string keys_set_name,
+                                 string type,
+                                 int nb_to_del,
+                                 unordered_map<string, double> *keys) {
+    if(boost::iequals(type,"zset")) { //Les clés doivent forcément être dans un ZSet
+        redis_pipe.zrange(keys_set_name, 0, nb_to_del-1, true);
+        redis_pipe.zremrangebyrank(keys_set_name, 0, nb_to_del-1);
+        auto result = redis_pipe.exec();
+        result.get(0, inserter(*keys, keys->begin()));
     }
 }
 
-void BGPRedisSaver::getOldValues(string values_set_name, string type, string key, vector<string> *toSave) {
+void BGPRedisSaver::getRemoveValues(string values_set_name,
+                                    string values_type,
+                                    string old_key,
+                                    vector<string> *toSave) {
+    getValues(values_set_name, values_type, old_key, toSave);
+    removeValues(values_set_name, values_type, old_key);
+    auto reply = redis_pipe.exec();
+    auto result = reply.get(0);
+    switch(result.type) {
+        case REDIS_REPLY_STRING:
+            toSave->push_back(result.str);
+            break;
+        case REDIS_REPLY_INTEGER:
+            toSave->push_back(to_string(result.integer));
+            break;
+        case REDIS_REPLY_ARRAY:
+            reply.get(0, inserter(*toSave, toSave->begin()));
+            break;
+        default:
+            break;
+    }
+}
+
+void BGPRedisSaver::getValues(string values_set_name, string type, string key, vector<string> *toSave) {
     if(boost::iequals(type,"string")) {
-        Optional<string> opt_res = redis.get(key);
-        if(opt_res) {
-            toSave->push_back(opt_res->c_str());
-        }
+        redis_pipe.get(key);
     } else if(boost::iequals(type,"list")) {
-        redis.lrange(values_set_name, 0, -1, inserter(*toSave, toSave->begin()));
+        redis_pipe.lrange(values_set_name, 0, -1);
     } else if(boost::iequals(type,"set")) {
-        redis.smembers(values_set_name, inserter(*toSave, toSave->begin()));
+        redis_pipe.smembers(values_set_name);
     } else if(boost::iequals(type,"zset")) {
-        redis.zrange(values_set_name, 0,-1, inserter(*toSave, toSave->begin()));
+        redis_pipe.zrange(values_set_name, 0,-1);
     } else if(boost::iequals(type,"hash")) {
-        Optional<string> opt_res = redis.hget(values_set_name, key);
-        if(opt_res) {
-            toSave->push_back(opt_res->c_str());
-        }
+        redis_pipe.hget(values_set_name, key);
     } else if(boost::iequals(type,"stream")) {
     } else { //none
     }
 }
 
-void BGPRedisSaver::deleteKeys(string keys_set_name, string type, int start, int stop) {
-    if(boost::iequals(type,"zset")) {
-        redis_pipe.zremrangebyrank(keys_set_name, start, stop);
-    }
-}
-
-void BGPRedisSaver::deleteValues(string values_set_name, string type, string old_key, bool isStatic) {
-    if (isStatic) {
-        // Remove from a HSet or directly from redis
-        if (boost::iequals(type,"string")) {
-            // Suppression du couple clé-valeur de la base Redis
-            redis_pipe.del(old_key);
-        } else if (boost::iequals(type,"hash")) {
-            // Suppression de l'élément dans le Hash
-            redis_pipe.hdel(values_set_name, old_key);
-        }
-    } else {
-        if (boost::iequals(type,"list")) {
-            // Suppression de la liste (Exemple "PRE:pfxID:peer" ou "ASR:ASN") entière
-            redis_pipe.del(values_set_name);
-        }
+void BGPRedisSaver::removeValues(string values_set_name, string type, string old_key) {
+    if (boost::iequals(type,"string")) { //Remove directly from redis
+        redis_pipe.del(old_key);
+    } else if (boost::iequals(type,"hash")) { //Remove from a Hash
+        redis_pipe.hdel(values_set_name, old_key);
+    } else if (boost::iequals(type,"list")) { //Remove a list
+        redis_pipe.del(values_set_name);
     }
 }
 
@@ -212,16 +279,12 @@ int BGPRedisSaver::getStructSize(string keys_set_name, string type) {
 
 
 
-void BGPRedisSaver::setPrint(bool p) {
-    print = p;
-}
-
-void BGPRedisSaver::setSleepDuration(int sleep) {
-    sleep_duration = sleep;
-}
 
 
 
+
+
+//################################ METHODES D'AFFICHAGE ################################
 void BGPRedisSaver::printSetInfo(string keys_set_name, string type, int set_size, int nb_element, int nb_to_del) {
     if(print) {
         cout << endl << keys_set_name << " :" << endl;

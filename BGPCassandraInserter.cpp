@@ -14,6 +14,13 @@
 using namespace std;
 
 
+BGPCassandraInserter::BGPCassandraInserter() {}
+BGPCassandraInserter::BGPCassandraInserter(std::string host, int port, int batchMaxSize) {
+    this->cassandra_host = host;
+    this->cassandra_port = port;
+    this->BATCH_MAX_SIZE = batchMaxSize;
+}
+
 
 //######################## CONNEXION ########################
 void BGPCassandraInserter::init_connections() {
@@ -82,7 +89,6 @@ int BGPCassandraInserter::insert(string dstTable, string set_name, string old_ke
     if(++batch_size >= BATCH_MAX_SIZE) {
         CassFuture *result_future = cass_session_execute_batch(session, batch);
 
-        //TODO vérifier que ces deux lignes sont nécessaires
         cass_batch_free(batch);
         batch = cass_batch_new(CASS_BATCH_TYPE_UNLOGGED);
 
@@ -134,9 +140,7 @@ void BGPCassandraInserter::setBatchMaxSize(int max_size) {
 //######################## ADAPTATION A LA DONNEE A INSERER ########################
 
 CassStatement *BGPCassandraInserter::addRoutingEventQuery(string old_key, string old_value) {
-    char *query = "INSERT INTO ROUTINGEVENT"
-                  " (prefixID, prefix, peer, pathHash, active, time, status)"
-                  " VALUES (?, ?, ?, ?, ?, ?, ?)";
+    const char *query = "INSERT INTO ROUTINGEVENT (prefixID, prefix, peer, pathHash, active, time, status) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
     string prefixID = "", prefix = "", pathHash = "", status = "", active = "";
     int peer = 0;
@@ -159,9 +163,7 @@ CassStatement *BGPCassandraInserter::addRoutingEventQuery(string old_key, string
 }
 
 CassStatement *BGPCassandraInserter::addASEventQuery(string old_key, string old_value) {
-    char *query = "INSERT INTO ASEVENT"
-                  " (dstAS, ASN, prefixID, active, time)"
-                  " VALUES (?, ?, ?, ?, ?)";
+    const char *query = "INSERT INTO ASEVENT (dstAS, ASN, prefixID, active, time) VALUES (?, ?, ?, ?, ?)";
 
     string dstAS = "";
     int ASN = 0;
@@ -182,9 +184,7 @@ CassStatement *BGPCassandraInserter::addASEventQuery(string old_key, string old_
 }
 
 CassStatement *BGPCassandraInserter::addPathQuery(string old_value) {
-    char *query = "INSERT INTO PATH"
-                  " (hash, path, pathLength, prefNum, lastChange, meanUp, meanDown, collector, active)"
-                  " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    const char *query = "INSERT INTO PATH (hash, path, pathLength, prefNum, lastChange, meanUp, meanDown, collector, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
     string hash = "", collector = "";
     vector<string> path;
@@ -213,9 +213,7 @@ CassStatement *BGPCassandraInserter::addPathQuery(string old_value) {
 }
 
 CassStatement *BGPCassandraInserter::addDefaultQuery(string dstTable, string set_name, string old_key, string old_value, unsigned int old_timestamp) {
-    char *query = "INSERT INTO DEFAULT_TABLE"
-                  " (key, value, dstTable, srcSet, time)"
-                  " VALUES (?, ?, ?, ?, ?)";
+    const char *query = "INSERT INTO DEFAULT_TABLE (key, value, dstTable, srcSet, time) VALUES (?, ?, ?, ?, ?)";
 
     CassStatement *statement = cass_statement_new(query, 5);
     cass_statement_bind_string(statement, 0, old_key.c_str());

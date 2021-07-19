@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Ensemble::Ensemble(std::string keys, std::string values, int size, bool staticSet, string dstTable) {
+Ensemble::Ensemble(string keys, string values, int size, bool staticSet, string dstTable) {
     this->key_set_name = keys;
     this->value_set_name = values;
     this->max_size = size;
@@ -15,17 +15,17 @@ Ensemble::Ensemble(std::string keys, std::string values, int size, bool staticSe
     this->dstTable = dstTable;
 }
 
-std::string Ensemble::getKeys() {
+string Ensemble::getKeys() {
     return this->key_set_name;
 }
 
-std::string Ensemble::getValues() {
+string Ensemble::getValues() {
     if(!this->staticSet) return "";
     return this->value_set_name;
 }
 
-std::string Ensemble::getValues(std::string listKey) {
-    if(this->staticSet) return "";
+string Ensemble::getValues(std::string listKey) {
+    if(this->staticSet) return this->value_set_name;
     return this->value_set_name + ":" + listKey;
 }
 
@@ -37,11 +37,11 @@ bool Ensemble::isStatic() {
     return this->staticSet;
 }
 
-std::string Ensemble::getDstTable() {
+string Ensemble::getDstTable() {
     return this->dstTable;
 }
 
-std::string Ensemble::toString() {
+string Ensemble::toString() {
     string str = "{";
     str += this->key_set_name + ",";
     str += this->value_set_name + ",";
