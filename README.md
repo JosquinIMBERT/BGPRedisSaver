@@ -106,3 +106,8 @@ Options :
     * size : size threshold for this set (number of keys).
     * static : boolean defining the mode (static/non-static)
     * -dstTable : Cassandra table where the data will be transferred.
+    
+To stop the application, you have to publish the message "STOP" on the "ChannelEndBGPRedisSaver" redis channel.
+To do so, you can run the following command :
+
+    redis-cli PUBLISH ChannelEndBGPRedisSaver STOP
