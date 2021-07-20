@@ -14,10 +14,13 @@
 
 class BGPRedisSaver {
 public:
+    static const std::string CHANNEL_END;
+    static bool stop;
+    static std::mutex *mtx_print;
 //#################### METHODES PUBLIQUES ####################
     BGPRedisSaver(const BGPRedisSaver &src);
     BGPRedisSaver(int i,
-                  std::mutex *mtx_stop,
+                  //std::mutex *mtx_stop,
                   bool print,
                   int sleep_duration,
                   int BATCH_MAX_SIZE,
@@ -30,12 +33,12 @@ public:
     void end_connections();
     void run();
 
+
 private:
 //#################### ATTRIBUTS PRIVES ####################
     int id;
-    std::mutex *mtx_stop;
     bool print = false;
-    int sleep_duration = 2;
+    int sleep_duration = 0;
     int BATCH_MAX_SIZE = 1000;
 
     std::string redis_host="127.0.0.1";

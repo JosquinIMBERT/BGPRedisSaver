@@ -3,22 +3,19 @@
 #include <signal.h>
 #include <thread>
 #include <boost/algorithm/string.hpp>
+#include <sw/redis++/redis++.h>
 
 #include "test.h"
 #include "Ensemble.h"
 #include "BGPRedisSaver.h"
 #include "BGPCassandraInserter.h"
 
+using namespace sw::redis;
 using namespace std;
 
-mutex mtx_stop;
 int nb_threads = 1;
-vector<thread> threads;
-vector<BGPRedisSaver> savers;
-
-void sigint_handler(int signum) {
-    mtx_stop.unlock();
-}
+vector<thread*> threads;
+vector<BGPRedisSaver*> savers;
 
 void usage() {
     cout << "BGPRedisServer :" << endl;
@@ -53,13 +50,45 @@ bool est_option_valide(string cmd) {
     return estValide;
 }
 
+void wait_end(string redis_host, int redis_port) {
+    //Connexion à Redis pour le message de fin
+    Redis redis = Redis("tcp://127.0.0.1:6379");
+    try {
+        ConnectionOptions connection_options;
+        connection_options.host = redis_host;
+        connection_options.port = redis_port;
+        redis = Redis(connection_options);
+    } catch (const Error &e) {
+        cerr << e.what() << endl;
+        exit(0);
+    }
+
+    //Abonnement au channel devant recevoir le message de fin
+    auto sub = redis.subscriber();
+    sub.on_message([](std::string channel, std::string msg) {
+        if(boost::iequals(channel, BGPRedisSaver::CHANNEL_END) && boost::iequals(msg,"stop")) {
+            BGPRedisSaver::stop = true;
+        }
+    });
+    sub.subscribe(BGPRedisSaver::CHANNEL_END);
+
+    //Attente de la publication du message de fin
+    while(!BGPRedisSaver::stop) {
+        try {
+            sub.consume();
+        } catch (const Error &err) {
+            cerr << "Pub/Sub error, ending thread" << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+}
+
 void launcher(int i) {
-    savers.at(i).run();
+    savers.at(i)->run();
 }
 
 int main(int argc, char **argv) {
     const int MAX_SIZE = 496460;
-    mtx_stop.lock();
 
     string redis_host = "127.0.0.1";
     int redis_port = 6379;
@@ -68,8 +97,8 @@ int main(int argc, char **argv) {
     int cassandra_port = 9042;
 
     bool print = false;
-    int sleep_duration = 2;
-    int batch_max_size = 4;
+    int sleep_duration = 0;
+    int batch_max_size = 1000;
 
     vector<Ensemble> sets;
     sets.push_back(Ensemble("APATHS", "PATHS", MAX_SIZE, true, "PATH"));
@@ -131,16 +160,19 @@ int main(int argc, char **argv) {
         }
     }
 
-    cout << "sets(" << sets.size() << ") :" << endl;
-    for(auto set : sets) {
-        cout << "\t" << set.toString() << endl;
+    if(print) {
+        BGPRedisSaver::mtx_print->lock();
+        cout << "sets(" << sets.size() << ") :" << endl;
+        for(auto set : sets) {
+            cout << "\t" << set.toString() << endl;
+        }
+        BGPRedisSaver::mtx_print->unlock();
     }
 
-    signal(SIGINT, sigint_handler);
-
+    savers = vector<BGPRedisSaver*>(nb_threads);
+    threads = vector<thread*>(nb_threads);
     for(int i=0; i<nb_threads; i++) {
-        savers.push_back(BGPRedisSaver(i,
-                                       &mtx_stop,
+        savers[i] = new BGPRedisSaver(i,
                                        print,
                                        sleep_duration,
                                        batch_max_size,
@@ -148,12 +180,14 @@ int main(int argc, char **argv) {
                                        redis_port,
                                        cassandra_host,
                                        cassandra_port,
-                                       &sets));
-        threads.push_back(thread(launcher, i));
+                                       &sets);
+        threads[i] = new thread(launcher, i);
     }
 
-    for(int i=0; i<nb_threads; i++) {
-        threads.at(i).join();
+    wait_end(redis_host, redis_port);
+
+    for(int i=nb_threads-1; i>=0; i--) {
+        threads.at(i)->join();
     }
 
     return 0;

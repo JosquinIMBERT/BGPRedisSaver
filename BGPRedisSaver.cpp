@@ -5,6 +5,7 @@
 #include <iostream>
 #include <unistd.h>
 #include <vector>
+#include <thread>
 #include <sw/redis++/redis++.h>
 #include <boost/algorithm/string.hpp>
 
@@ -18,9 +19,17 @@ using namespace std;
 
 
 
+const string BGPRedisSaver::CHANNEL_END="ChannelEndBGPRedisSaver";
+bool BGPRedisSaver::stop = false;
+mutex* BGPRedisSaver::mtx_print = new mutex();
+
+
+
+
+
 //################################ CONSTRUCTEURS ################################
 BGPRedisSaver::BGPRedisSaver(const BGPRedisSaver &src) {
-    mtx_stop = src.mtx_stop;
+    id = src.id;
     print = src.print;
     sleep_duration = src.sleep_duration;
     BATCH_MAX_SIZE = src.BATCH_MAX_SIZE;
@@ -39,7 +48,6 @@ BGPRedisSaver::BGPRedisSaver(const BGPRedisSaver &src) {
     cass_inserter = src.cass_inserter;
 }
 BGPRedisSaver::BGPRedisSaver(int i,
-                            mutex *mtx_stop,
                             bool print,
                             int sleep_duration,
                             int BATCH_MAX_SIZE,
@@ -49,7 +57,6 @@ BGPRedisSaver::BGPRedisSaver(int i,
                             int cassandra_port,
                             vector<Ensemble> *sets) {
     this->id = i;
-    this->mtx_stop = mtx_stop;
     this->print = print;
     this->sleep_duration = sleep_duration;
     this->BATCH_MAX_SIZE = BATCH_MAX_SIZE;
@@ -86,16 +93,15 @@ BGPRedisSaver::BGPRedisSaver(int i,
 
 //################################ METHODES LIEES A LA CONNEXION ################################
 void BGPRedisSaver::init_connections() {
-    cout << "Connecting to Redis...";
     try {
         ConnectionOptions connection_options;
         connection_options.host = redis_host;
         connection_options.port = redis_port;
         redis = Redis(connection_options);
         redis_pipe = redis.pipeline();
-        cout << "done." << endl;
+        cout << "Connection to Redis: done.\n";
     } catch (const Error &e) {
-        cout << "failed." << endl;
+        cout << "Connection to Redis: failed.\n";
         cerr << e.what() << endl;
         exit(0);
     }
@@ -105,7 +111,7 @@ void BGPRedisSaver::init_connections() {
 
 void BGPRedisSaver::end_connections() {
     cass_inserter.end_connections();
-    cout << "Ending connection with Redis...done." << endl;
+    cout << "Ending connection with Redis: done.\n";
 }
 
 
@@ -125,13 +131,15 @@ void BGPRedisSaver::end_connections() {
 //################################ METHODES EXECUTEES PAR LE THREAD ################################
 void BGPRedisSaver::run() {
     if(sets->empty()) {
-        cerr << "BGPRedisServer::run received empty list of sets" << endl;
+        if(print) {
+            cerr << "BGPRedisServer::run received empty list of sets\n";
+        }
         return;
     }
     init_connections();
 
     int i=0;
-    while (!mtx_stop->try_lock()) {
+    while (!stop) { //!mtx_stop->try_lock()) {
         string keys_set_name = sets->at(i).getKeys();
         string keys_type = redis.type(keys_set_name);
 
@@ -178,9 +186,10 @@ void BGPRedisSaver::run() {
         i = (i+1) % sets->size();
         sleep(sleep_duration);
     }
-    mtx_stop->unlock();
 
     end_connections();
+
+    return;
 }
 
 
@@ -287,17 +296,20 @@ int BGPRedisSaver::getStructSize(string keys_set_name, string type) {
 //################################ METHODES D'AFFICHAGE ################################
 void BGPRedisSaver::printSetInfo(string keys_set_name, string type, int set_size, int nb_element, int nb_to_del) {
     if(print) {
+        mtx_print->lock();
         cout << endl << keys_set_name << " :" << endl;
         cout << "\t-type: " << type << endl;
         cout << "\t-size: " << set_size << endl;
         cout << "\t-nb_element: " << nb_element << endl;
         cout << "\t-nb_to_del: " << ((nb_to_del>0) ? nb_to_del : 0) << endl;
         cout << "\t-values: " << ((nb_to_del<=0) ? "none" : "") << endl;
+        mtx_print->unlock();
     }
 }
 
 void BGPRedisSaver::printInfo(string initial_tab, int ind, string values_set_name, string old_key, vector<string> toSave, int success) {
     if(print) {
+        mtx_print->lock();
         cout << initial_tab << "-Transfer " << ind << " :" << endl;
         cout << initial_tab << "\t-set: " << values_set_name << endl;
         cout << initial_tab << "\t-old_key: " << old_key << endl;
@@ -310,5 +322,6 @@ void BGPRedisSaver::printInfo(string initial_tab, int ind, string values_set_nam
         }
         cout << "]" << endl;
         cout << initial_tab << "\t-nb transfered data: " << success << endl;
+        mtx_print->unlock();
     }
 }

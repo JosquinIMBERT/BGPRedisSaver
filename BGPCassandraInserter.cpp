@@ -24,7 +24,6 @@ BGPCassandraInserter::BGPCassandraInserter(std::string host, int port, int batch
 
 //######################## CONNEXION ########################
 void BGPCassandraInserter::init_connections() {
-    cout << "Connecting to Cassandra..." ;
     //##### Connexion à la base cassandra #####
     CassFuture *connect_future = NULL;
     cluster = cass_cluster_new();
@@ -37,19 +36,17 @@ void BGPCassandraInserter::init_connections() {
     // Provide the cluster object as configuration to connect the session
     connect_future = cass_session_connect_keyspace(session, cluster, KEYSPACE);
     if (cass_future_error_code(connect_future) != CASS_OK) {
-        cout << "failed." << endl;
+        cout << "Connection to Cassandra: failed.\n";
         cass_future_free(connect_future);
         cass_cluster_free(cluster);
         cass_session_free(session);
         exit(1);
     }
     cass_future_free(connect_future);
-    cout << "done." << endl;
+    cout << "Connection to Cassandra: done.\n";
 }
 
 void BGPCassandraInserter::end_connections() {
-    cout << "Ending connection with Cassandra...";
-
     //##### Exécution des dernières commandes #####
     cass_session_execute_batch(session, batch);
 
@@ -62,7 +59,7 @@ void BGPCassandraInserter::end_connections() {
     cass_batch_free(batch);
     cass_cluster_free(cluster);
     cass_session_free(session);
-    cout << "done." << endl;
+    cout << "Ending connection with Cassandra: done.\n";
 }
 
 
@@ -103,16 +100,6 @@ int BGPCassandraInserter::insert(string dstTable, string set_name, string old_ke
         }
         return ret;
     }
-    /*bool ret = true;
-    CassFuture *result_future = cass_session_execute(session, statement);
-    if (cass_future_error_code(result_future) != CASS_OK) {
-        const char *message;
-        size_t message_length;
-        cass_future_error_message(result_future, &message, &message_length);
-        fprintf(stderr, "BGPCassandraInserter error: Unable to run query: '%.*s'\n", (int) message_length, message);
-        ret = false;
-    }
-    return ret;*/
     return 0;
 }
 
