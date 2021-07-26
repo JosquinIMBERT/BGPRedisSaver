@@ -18,7 +18,7 @@ BGPCassandraInserter::BGPCassandraInserter() {}
 BGPCassandraInserter::BGPCassandraInserter(std::string host, int port, int batchMaxSize) {
     this->cassandra_host = host;
     this->cassandra_port = port;
-    this->BATCH_MAX_SIZE = batchMaxSize;
+    this->BATCH_MAX_SIZE = 100;//batchMaxSize;
 }
 
 
